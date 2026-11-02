@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.pastel-notes" path="/org/gnome/shell/extensions/pastel-notes/">
+    <key name="new-note" type="as">
+      <default>["&lt;Control&gt;&lt;Super&gt;n"]</default>
+      <summary>Create a note at the pointer</summary>
+    </key>
+    <key name="toggle-notes" type="as">
+      <default>["&lt;Control&gt;&lt;Super&gt;h"]</default>
+      <summary>Show or hide every note</summary>
+    </key>
+    <key name="stick" type="b">
+      <default>true</default>
+      <summary>Show notes on all workspaces</summary>
+    </key>
+    <key name="sink-unfocused" type="b">
+      <default>true</default>
+      <summary>Place unfocused notes behind other windows</summary>
+    </key>
+    <key name="note-width" type="i">
+      <default>230</default>
+      <range min="180" max="960"/>
+      <summary>Width of a newly created note</summary>
+    </key>
+    <key name="note-height" type="i">
+      <default>180</default>
+      <range min="120" max="1200"/>
+      <summary>Height of a newly created note</summary>
+    </key>
+    <key name="max-width" type="i">
+      <default>440</default>
+      <range min="240" max="960"/>
+      <summary>Widest a note can be</summary>
+      <description>About 48 characters at the normal text size. Can be raised up to 960.</description>
+    </key>
+    <key name="max-height" type="i">
+      <default>460</default>
+      <range min="180" max="1200"/>
+      <summary>Tallest a note can be</summary>
+      <description>About 20 lines at the normal text size. Can be raised up to 1200.</description>
+    </key>
+  </schema>
+</schemalist>

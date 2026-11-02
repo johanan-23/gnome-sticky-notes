@@ -1,0 +1,62 @@
+#!/bin/bash
+# rustc link driver. This machine has ld and libc, and no gcc package.
+set -euo pipefail
+
+compile=0
+shared=0
+has_crt=0
+has_interp=0
+for arg in "$@"; do
+    case "$arg" in
+        -c|-E|-S) compile=1 ;;
+        -shared) shared=1 ;;
+        *Scrt1.o|*crt1.o) has_crt=1 ;;
+        -dynamic-linker) has_interp=1 ;;
+        -Wl,-dynamic-linker,*) has_interp=1 ;;
+    esac
+done
+
+if [[ "$compile" -eq 1 ]]; then
+    echo "pastel-notes: C compilation was requested, but only a linker is available" >&2
+    printf '  %q' "$@" >&2
+    echo >&2
+    exit 1
+fi
+
+here="$(cd "$(dirname "$0")" && pwd)"
+args=()
+if [[ "$has_interp" -eq 0 ]]; then
+    args+=(-dynamic-linker /lib64/ld-linux-x86-64.so.2)
+fi
+if [[ "$shared" -eq 0 && "$has_crt" -eq 0 ]]; then
+    args+=(/usr/lib/x86_64-linux-gnu/Scrt1.o)
+fi
+args+=(/usr/lib/x86_64-linux-gnu/crti.o)
+args+=(-L"$here/lib" -L/usr/lib/x86_64-linux-gnu -L/lib/x86_64-linux-gnu)
+
+for arg in "$@"; do
+    case "$arg" in
+        -m64|-m32|-fPIC|-fPIE|-fno-plt|-ffunction-sections|-fdata-sections|-nodefaultlibs|-pthread|-fuse-ld=*|-B*)
+            if [[ "$arg" == "-pthread" ]]; then
+                args+=(-lpthread)
+            fi
+            ;;
+        -Wl,*)
+            IFS=',' read -ra parts <<< "${arg#-Wl,}"
+            for part in "${parts[@]}"; do
+                [[ -n "$part" ]] && args+=("$part")
+            done
+            ;;
+        *)
+            args+=("$arg")
+            ;;
+    esac
+done
+
+args+=(/usr/lib/x86_64-linux-gnu/crtn.o)
+
+lld="${RUSTUP_LLD:-$HOME/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/bin/gcc-ld/ld.lld}"
+if [[ ! -x "$lld" ]]; then
+    lld=/usr/bin/ld
+fi
+exec "$lld" "${args[@]}"

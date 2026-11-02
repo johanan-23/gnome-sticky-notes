@@ -1,0 +1,210 @@
+/* Static paint only. No transitions, shadows, or animations. */
+
+window.noteshell {
+  background-color: transparent;
+}
+
+.card {
+  border-radius: 12px;
+  border: 1px solid rgba(50, 47, 56, 0.10);
+  color: #322f38;
+}
+
+.card.sand, button.swatch.sand { background-color: #f4edc4; }
+.card.blossom, button.swatch.blossom { background-color: #f6d6d8; }
+.card.mint, button.swatch.mint { background-color: #d5f0e2; }
+.card.sky, button.swatch.sky { background-color: #d5e7f8; }
+.card.lilac, button.swatch.lilac { background-color: #e5dff6; }
+.card.peach, button.swatch.peach { background-color: #fde1ce; }
+.card.lemon, button.swatch.lemon { background-color: #f7f1b0; }
+.card.cream, button.swatch.cream { background-color: #f8f1e3; }
+.card.apricot, button.swatch.apricot { background-color: #f8d0b0; }
+.card.coral, button.swatch.coral { background-color: #f8d2c8; }
+.card.rose, button.swatch.rose { background-color: #f6c6d0; }
+.card.mauve, button.swatch.mauve { background-color: #ecd6e8; }
+.card.iris, button.swatch.iris { background-color: #ddd4f6; }
+.card.mist, button.swatch.mist { background-color: #d4eef2; }
+.card.sage, button.swatch.sage { background-color: #d5e6cc; }
+.card.aqua, button.swatch.aqua { background-color: #c9eee6; }
+
+button.swatch {
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0;
+  margin: 0;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-image: none;
+  box-shadow: none;
+  outline: none;
+}
+
+button.swatch:hover {
+  border-color: rgba(50, 47, 56, 0.35);
+}
+
+button.swatch.current {
+  border-color: rgba(50, 47, 56, 0.78);
+}
+
+.swatch-caption {
+  color: @theme_fg_color;
+  font-size: 11pt;
+}
+
+.grip {
+  min-height: 18px;
+  background-color: rgba(50, 47, 56, 0.05);
+  border-radius: 12px 12px 0 0;
+}
+
+.pill {
+  background-color: rgba(50, 47, 56, 0.28);
+  border-radius: 4px;
+  min-width: 36px;
+  min-height: 4px;
+}
+
+.resize {
+  background-color: rgba(50, 47, 56, 0.16);
+  border-radius: 2px 0 11px 0;
+  min-width: 16px;
+  min-height: 16px;
+}
+
+.card.size-11 textview,
+.card.size-11 textview text { font-size: 11pt; }
+
+.card.size-12 textview,
+.card.size-12 textview text { font-size: 12pt; }
+
+.card.size-13 textview,
+.card.size-13 textview text { font-size: 13pt; }
+
+.card.size-14 textview,
+.card.size-14 textview text { font-size: 14pt; }
+
+.card.size-15 textview,
+.card.size-15 textview text { font-size: 15pt; }
+
+.card.size-16 textview,
+.card.size-16 textview text { font-size: 16pt; }
+
+.card textview,
+.card textview text {
+  background-color: transparent;
+  color: #322f38;
+  caret-color: #322f38;
+}
+
+.card textview selection {
+  background-color: rgba(50, 47, 56, 0.16);
+  color: #322f38;
+}
+
+.card textview:disabled,
+.card textview:disabled text {
+  color: rgba(50, 47, 56, 0.72);
+}
+
+/* The note’s dark ink must not leak into the menu. The outer popover stays
+   transparent: the theme paints the rounded contents, and a square fill
+   here would show past those corners. Colors follow the light or dark theme. */
+popover.menu {
+  background-color: transparent;
+  box-shadow: none;
+  color: @theme_fg_color;
+}
+
+popover.menu > contents {
+  color: @theme_fg_color;
+}
+
+popover.menu modelbutton,
+popover.menu modelbutton label,
+popover.menu accelerator,
+popover.menu label.accelerator,
+popover.menu modelbutton image {
+  color: @theme_fg_color;
+  opacity: 1;
+}
+
+popover.menu modelbutton image {
+  -gtk-icon-size: 16px;
+  margin-right: 8px;
+}
+
+popover.menu modelbutton:disabled label,
+popover.menu modelbutton:disabled accelerator,
+popover.menu modelbutton:disabled image {
+  color: alpha(@theme_fg_color, 0.5);
+}
+
+button.lockrow {
+  margin: 0 6px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  background-image: none;
+  box-shadow: none;
+  outline: none;
+}
+
+button.lockrow:hover {
+  background-color: alpha(@theme_fg_color, 0.08);
+}
+
+button.lockrow label,
+button.lockrow image {
+  color: @theme_fg_color;
+}
+
+/* In the card, under the text, so opening it does not resize the window. */
+.ribbon {
+  margin: 0 16px 6px 8px;
+  padding: 1px;
+  border-radius: 10px;
+  background-color: rgba(255, 252, 248, 0.94);
+  border: 1px solid rgba(50, 47, 56, 0.12);
+}
+
+.ribbon button.tool {
+  min-width: 0;
+  min-height: 24px;
+  padding: 2px 0;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  background-image: none;
+  box-shadow: none;
+  outline: none;
+  font-size: 11pt;
+  font-weight: 600;
+  color: #322f38;
+  -gtk-icon-size: 14px;
+}
+
+.ribbon button.tool:hover {
+  background-color: rgba(50, 47, 56, 0.08);
+}
+
+.ribbon button.tool.on {
+  background-color: rgba(50, 47, 56, 0.16);
+}
+
+.ribbon button.tool:disabled {
+  opacity: 0.35;
+}
+
+.ribbon label.size {
+  font-size: 10pt;
+  font-weight: 600;
+  color: #322f38;
+  min-width: 16px;
+  padding: 0 1px;
+}
+
+.ribbon image {
+  color: #322f38;
+}

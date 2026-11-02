@@ -1,0 +1,9 @@
+/target/
+/tools/lib/
+/tools/pkgconfig/
+/.cargo/
+dist/
+*.zip
+*.sock
+*~
+.DS_Store
