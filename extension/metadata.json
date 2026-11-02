@@ -4,5 +4,6 @@
   "description": "Sticky notes on the desktop, in soft pastel colors. Notes stay off the dock, the app switcher, and the overview.",
   "shell-version": ["51"],
   "version": 1,
-  "settings-schema": "org.gnome.shell.extensions.pastel-notes"
+  "settings-schema": "org.gnome.shell.extensions.pastel-notes",
+  "url": "https://github.com/johanan-23/gnome-sticky-notes"
 }
