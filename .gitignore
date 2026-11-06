@@ -1,4 +1,6 @@
 /target/
+/venv/
+/.venv/
 /tools/lib/
 /tools/pkgconfig/
 /.cargo/
