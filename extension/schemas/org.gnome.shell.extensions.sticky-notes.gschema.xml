@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
-  <schema id="org.gnome.shell.extensions.pastel-notes" path="/org/gnome/shell/extensions/pastel-notes/">
+  <schema id="org.gnome.shell.extensions.sticky-notes" path="/org/gnome/shell/extensions/sticky-notes/">
     <key name="new-note" type="as">
       <default>["&lt;Control&gt;&lt;Super&gt;n"]</default>
       <summary>Create a note at the pointer</summary>

@@ -36,13 +36,13 @@ cargo build --release
 uuid="$(python3 -c 'import json; print(json.load(open("extension/metadata.json"))["uuid"])')"
 ext="${XDG_DATA_HOME:-$HOME/.local/share}/gnome-shell/extensions/${uuid}"
 mkdir -p "$ext/bin" "$ext/schemas"
-cp extension/metadata.json extension/extension.js extension/prefs.js "$ext/"
+cp extension/metadata.json extension/*.js "$ext/"
 rm -rf "$ext/icons"
 cp -a extension/icons "$ext/"
-cp extension/schemas/org.gnome.shell.extensions.pastel-notes.gschema.xml "$ext/schemas/"
+cp extension/schemas/org.gnome.shell.extensions.sticky-notes.gschema.xml "$ext/schemas/"
 glib-compile-schemas "$ext/schemas"
 target_dir="${CARGO_TARGET_DIR:-target}"
-install -m 0755 "$target_dir/release/pastel-notes" "$ext/bin/pastel-notes"
+install -m 0755 "$target_dir/release/sticky-notes" "$ext/bin/sticky-notes"
 
 if gnome-extensions info "$uuid" >/dev/null 2>&1; then
     gnome-extensions disable "$uuid" || true

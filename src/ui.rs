@@ -1372,7 +1372,7 @@ pub fn flush_save(app: &Rc<RefCell<App>>) {
     }
     let a = app.borrow();
     if let Err(error) = store::save(&a.path, &a.store) {
-        eprintln!("pastel-notes: could not save notes: {error}");
+        eprintln!("sticky-notes: could not save notes: {error}");
     }
 }
 

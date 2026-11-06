@@ -14,7 +14,7 @@ On Debian or Ubuntu:
 sudo apt install build-essential pkg-config libgtk-4-dev
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 git clone <repository-url>
-cd pastel-notes
+cd sticky-notes
 ./install.sh
 ```
 
@@ -28,7 +28,7 @@ Then install Rust the same way and run `./install.sh`.
 
 `install.sh` builds the notes program and copies the extension into `~/.local/share/gnome-shell/extensions/`. If the notes do not appear, log out and back in.
 
-Notes are stored in `~/.local/share/pastel-notes/notes.json`.
+Notes are stored in `~/.local/share/sticky-notes/notes.json`.
 
 ## Daily use
 
@@ -43,7 +43,7 @@ Both shortcuts can be changed or turned off in the extension settings. Backspace
 
 ## Why there is a Rust program
 
-GNOME Shell extensions are JavaScript. The notes themselves are a separate program, `pastel-notes`, written in Rust and GTK 4. Shell JavaScript launches that program, keeps its windows off the dock, and places them. A Wayland application cannot place its own windows.
+GNOME Shell extensions are JavaScript. The notes themselves are a separate program, `sticky-notes`, written in Rust and GTK 4. Shell JavaScript launches that program, keeps its windows off the dock, and places them. A Wayland application cannot place its own windows.
 
 Rust is only needed on a computer that **builds** the program. It is not needed to run it.
 

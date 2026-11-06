@@ -447,7 +447,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pastel-notes"
+name = "sticky-notes"
 version = "1.0.0"
 dependencies = [
  "gtk4",

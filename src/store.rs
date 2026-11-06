@@ -137,7 +137,7 @@ pub fn data_path() -> PathBuf {
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")))
         .unwrap_or_else(|| PathBuf::from("."));
-    base.join("pastel-notes/notes.json")
+    base.join("sticky-notes/notes.json")
 }
 
 pub fn load(path: &Path) -> (Store, bool) {
@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn round_trip_preserves_text() {
-        let dir = std::env::temp_dir().join(format!("pastel-notes-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("sticky-notes-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join("notes.json");

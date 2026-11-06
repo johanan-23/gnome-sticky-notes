@@ -23,14 +23,14 @@ use gtk4::prelude::*;
 use crate::geom::Rect;
 use crate::ui::App;
 
-const APP_ID: &str = "com.johanan.PastelNotes";
+const APP_ID: &str = "com.johanan.StickyNotes";
 const SIGTERM: i32 = 15;
 
 fn main() {
     // A GL renderer costs about 100 MB and a multi-second startup for a
     // window that almost never redraws. Cairo paints the note once and sits idle.
     std::env::set_var("GSK_RENDERER", "cairo");
-    glib::set_prgname(Some("pastel-notes"));
+    glib::set_prgname(Some("sticky-notes"));
     let application = gtk4::Application::builder()
         .application_id(APP_ID)
         .flags(gio::ApplicationFlags::empty())
@@ -76,7 +76,7 @@ fn socket_path() -> PathBuf {
     let dir = std::env::var_os("XDG_RUNTIME_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("/tmp"));
-    dir.join("pastel-notes.sock")
+    dir.join("sticky-notes.sock")
 }
 
 fn remove_socket() {
@@ -89,12 +89,12 @@ fn serve(app: &Rc<RefCell<App>>) {
     let listener = match UnixListener::bind(&path) {
         Ok(listener) => listener,
         Err(error) => {
-            eprintln!("pastel-notes: command socket unavailable: {error}");
+            eprintln!("sticky-notes: command socket unavailable: {error}");
             return;
         }
     };
     if let Err(error) = listener.set_nonblocking(true) {
-        eprintln!("pastel-notes: command socket unavailable: {error}");
+        eprintln!("sticky-notes: command socket unavailable: {error}");
         return;
     }
     let fd = listener.as_raw_fd();
@@ -111,7 +111,7 @@ fn serve(app: &Rc<RefCell<App>>) {
                 Ok((stream, _)) => watch_client(stream, Rc::downgrade(&app)),
                 Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => break,
                 Err(error) => {
-                    eprintln!("pastel-notes: command socket: {error}");
+                    eprintln!("sticky-notes: command socket: {error}");
                     break;
                 }
             }
@@ -158,7 +158,7 @@ fn watch_client(stream: UnixStream, app: Weak<RefCell<App>>) {
                     return ControlFlow::Continue;
                 }
                 Err(error) => {
-                    eprintln!("pastel-notes: command socket: {error}");
+                    eprintln!("sticky-notes: command socket: {error}");
                     return ControlFlow::Break;
                 }
             }

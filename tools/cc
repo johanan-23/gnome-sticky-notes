@@ -17,7 +17,7 @@ for arg in "$@"; do
 done
 
 if [[ "$compile" -eq 1 ]]; then
-    echo "pastel-notes: C compilation was requested, but only a linker is available" >&2
+    echo "sticky-notes: C compilation was requested, but only a linker is available" >&2
     printf '  %q' "$@" >&2
     echo >&2
     exit 1

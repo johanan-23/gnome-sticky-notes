@@ -11,9 +11,9 @@ out="dist/${uuid}.shell-extension.zip"
 rm -rf "$stage"
 mkdir -p "$stage/schemas" "$stage/icons"
 
-cp extension/metadata.json extension/extension.js extension/prefs.js "$stage/"
+cp extension/metadata.json extension/*.js "$stage/"
 cp LICENSE "$stage/LICENSE"
-cp extension/schemas/org.gnome.shell.extensions.pastel-notes.gschema.xml "$stage/schemas/"
+cp extension/schemas/org.gnome.shell.extensions.sticky-notes.gschema.xml "$stage/schemas/"
 cp -a extension/icons/. "$stage/icons/"
 
 python3 - "$stage" <<'PY'
@@ -48,4 +48,4 @@ rm -f "$out"
 rm -rf "$stage"
 echo "wrote $out"
 echo "This zip does not contain the notes program. extensions.gnome.org rejects bundled executables."
-echo "People who install only this zip still need to build pastel-notes from the source repository."
+echo "People who install only this zip still need to build sticky-notes from the source repository."
