@@ -52,13 +52,7 @@ export class NotesMenu {
 
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         const settings = new PopupMenu.PopupImageMenuItem('Settings', 'emblem-system-symbolic');
-        settings.connect('activate', () => {
-            try {
-                this._openPreferences();
-            } catch (e) {
-                logError(e, '[sticky-notes] settings');
-            }
-        });
+        settings.connect('activate', () => this._openPreferences());
         menu.addMenuItem(settings);
 
         this._menu = menu;

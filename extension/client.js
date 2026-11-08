@@ -2,71 +2,11 @@
 
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import Meta from 'gi://Meta';
-
-import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-
-const SIGTERM = 15;
 
 export class NotesClient {
     constructor(dir) {
         this._dir = dir;
-        this._proc = null;
-        this._wayland = null;
         this._syncId = 0;
-        this._restartId = 0;
-        this._crashes = 0;
-        this._missingNoted = false;
-        this._onStarted = null;
-    }
-
-    start(onStarted) {
-        this._onStarted = onStarted;
-        this.spawn();
-    }
-
-    spawn() {
-        if (this._proc && !this._proc.get_if_exited())
-            return;
-
-        const binary = this._binary();
-        if (!GLib.file_test(binary, GLib.FileTest.IS_EXECUTABLE)) {
-            console.error(`[sticky-notes] missing ${binary}`);
-            this._noteMissing();
-            return;
-        }
-
-        const argv = [binary];
-        try {
-            const launcher = new Gio.SubprocessLauncher({
-                flags: Gio.SubprocessFlags.NONE,
-            });
-            launcher.setenv('GSK_RENDERER', 'cairo', true);
-            this._wayland = Meta.WaylandClient.new_subprocess(global.context, launcher, argv);
-            this._proc = this._wayland.get_subprocess();
-        } catch (e) {
-            logError(e, '[sticky-notes] failed to launch');
-            this._wayland = null;
-            try {
-                const launcher = new Gio.SubprocessLauncher({
-                    flags: Gio.SubprocessFlags.NONE,
-                });
-                launcher.setenv('GSK_RENDERER', 'cairo', true);
-                this._proc = launcher.spawnv(argv);
-            } catch (again) {
-                logError(again, '[sticky-notes] failed to launch');
-                this._proc = null;
-                return;
-            }
-        }
-
-        this._watch(this._proc);
-        if (this._onStarted)
-            this._onStarted();
-    }
-
-    owns(window) {
-        return this._wayland !== null && this._wayland.owns_window(window);
     }
 
     installed() {
@@ -74,8 +14,7 @@ export class NotesClient {
     }
 
     command(text) {
-        if (!this.send(text))
-            this.spawn();
+        this.send(text);
     }
 
     send(text) {
@@ -123,26 +62,6 @@ export class NotesClient {
             GLib.Source.remove(this._syncId);
             this._syncId = 0;
         }
-        if (this._restartId) {
-            GLib.Source.remove(this._restartId);
-            this._restartId = 0;
-        }
-
-        const proc = this._proc;
-        this._proc = null;
-        this._wayland = null;
-        this._onStarted = null;
-        if (!proc)
-            return;
-
-        this.send('quit\n');
-        if (proc.get_if_exited())
-            return;
-        try {
-            proc.send_signal(SIGTERM);
-        } catch (e) {
-            // Exited after the quit command.
-        }
     }
 
     _binary() {
@@ -150,51 +69,6 @@ export class NotesClient {
         if (GLib.file_test(bundled, GLib.FileTest.IS_EXECUTABLE))
             return bundled;
         return GLib.find_program_in_path('sticky-notes') ?? bundled;
-    }
-
-    _noteMissing() {
-        if (this._missingNoted)
-            return;
-        this._missingNoted = true;
-        Main.notify(
-            'Sticky Notes',
-            'The notes program is not installed yet. Build it from the project source with install.sh.',
-        );
-    }
-
-    _watch(proc) {
-        proc.wait_async(null, (p, result) => {
-            try {
-                p.wait_finish(result);
-            } catch (e) {
-                // Throws when the process was killed.
-            }
-            if (p !== this._proc)
-                return;
-            this._proc = null;
-            this._wayland = null;
-            const clean = p.get_if_exited() && p.get_exit_status() === 0;
-            if (clean)
-                return;
-            this._crashes += 1;
-            if (this._crashes > 3) {
-                console.error('[sticky-notes] stopped after repeated exits');
-                return;
-            }
-            this._scheduleRestart();
-        });
-    }
-
-    _scheduleRestart() {
-        if (this._restartId) {
-            GLib.Source.remove(this._restartId);
-            this._restartId = 0;
-        }
-        this._restartId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1500, () => {
-            this._restartId = 0;
-            this.spawn();
-            return GLib.SOURCE_REMOVE;
-        });
     }
 }
 
