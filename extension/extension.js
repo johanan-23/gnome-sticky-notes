@@ -31,7 +31,7 @@ export default class StickyNotesExtension extends Extension {
         this._watchSettings();
         this._windows.watch();
         this._menu.addToPanel();
-        this._client.start(() => this._windows.onClientStarted());
+        this._windows.onClientStarted();
     }
 
     disable() {

@@ -26,7 +26,7 @@ sudo dnf install gcc pkg-config gtk4-devel
 
 Then install Rust the same way and run `./install.sh`.
 
-`install.sh` builds the notes program and copies the extension into `~/.local/share/gnome-shell/extensions/`. If the notes do not appear, log out and back in.
+`install.sh` builds the notes program and copies the extension into `~/.local/share/gnome-shell/extensions/`. Log out and back in if the top-bar icon does not appear. The extension does not start the notes program. Run the `sticky-notes` binary it installed (under that extension directory's `bin` folder, or on your `PATH`) and leave it running.
 
 Notes are stored in `~/.local/share/sticky-notes/notes.json`.
 
@@ -43,7 +43,7 @@ Both shortcuts can be changed or turned off in the extension settings. Backspace
 
 ## Why there is a Rust program
 
-GNOME Shell extensions are JavaScript. The notes themselves are a separate program, `sticky-notes`, written in Rust and GTK 4. Shell JavaScript launches that program, keeps its windows off the dock, and places them. A Wayland application cannot place its own windows.
+GNOME Shell extensions are JavaScript. The notes themselves are a separate program, `sticky-notes`, written in Rust and GTK 4. Shell JavaScript keeps its windows off the dock and places them. It talks to the program over a runtime socket and does not launch it. A Wayland application cannot place its own windows.
 
 Rust is only needed on a computer that **builds** the program. It is not needed to run it.
 

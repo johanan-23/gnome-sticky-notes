@@ -159,8 +159,6 @@ export class NoteWindows {
     }
 
     _owns(window) {
-        if (this._client.owns(window))
-            return true;
         if (window.gtk_application_id === APP_ID)
             return true;
         return (window.title ?? '').startsWith('pn:');
