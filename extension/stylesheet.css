@@ -1,0 +1,83 @@
+/* Pastel notes drawn by the Shell. No transitions or shadows. */
+
+.sticky-note {
+    border-radius: 12px;
+    border: 1px solid rgba(50, 47, 56, 0.10);
+}
+
+.sticky-note.sand,
+.sticky-swatch.sand { background-color: #f4edc4; }
+.sticky-note.blossom,
+.sticky-swatch.blossom { background-color: #f6d6d8; }
+.sticky-note.mint,
+.sticky-swatch.mint { background-color: #d5f0e2; }
+.sticky-note.sky,
+.sticky-swatch.sky { background-color: #d5e7f8; }
+.sticky-note.lilac,
+.sticky-swatch.lilac { background-color: #e5dff6; }
+.sticky-note.peach,
+.sticky-swatch.peach { background-color: #fde1ce; }
+.sticky-note.lemon,
+.sticky-swatch.lemon { background-color: #f7f1b0; }
+.sticky-note.cream,
+.sticky-swatch.cream { background-color: #f8f1e3; }
+.sticky-note.apricot,
+.sticky-swatch.apricot { background-color: #f8d0b0; }
+.sticky-note.coral,
+.sticky-swatch.coral { background-color: #f8d2c8; }
+.sticky-note.rose,
+.sticky-swatch.rose { background-color: #f6c6d0; }
+.sticky-note.mauve,
+.sticky-swatch.mauve { background-color: #ecd6e8; }
+.sticky-note.iris,
+.sticky-swatch.iris { background-color: #ddd4f6; }
+.sticky-note.mist,
+.sticky-swatch.mist { background-color: #d4eef2; }
+.sticky-note.sage,
+.sticky-swatch.sage { background-color: #d5e6cc; }
+.sticky-note.aqua,
+.sticky-swatch.aqua { background-color: #c9eee6; }
+
+.sticky-note-grip {
+    background-color: rgba(50, 47, 56, 0.05);
+    border-radius: 12px 12px 0 0;
+    cursor: grab;
+}
+
+.sticky-note-pill {
+    background-color: rgba(50, 47, 56, 0.28);
+    border-radius: 4px;
+}
+
+.sticky-note-resize {
+    background-color: rgba(50, 47, 56, 0.16);
+    border-radius: 2px 0 11px 0;
+    cursor: se-resize;
+}
+
+.sticky-note-scroll {
+    background-color: transparent;
+}
+
+.sticky-note-colors {
+    padding: 8px 10px 2px;
+}
+
+.sticky-note-caption {
+    padding-bottom: 6px;
+    font-size: 11pt;
+}
+
+.sticky-swatch {
+    border-radius: 999px;
+    border: 2px solid transparent;
+    margin: 3px;
+}
+
+.sticky-swatch:hover {
+    border-color: rgba(50, 47, 56, 0.35);
+}
+
+.sticky-swatch.current {
+    border-color: rgba(50, 47, 56, 0.78);
+}

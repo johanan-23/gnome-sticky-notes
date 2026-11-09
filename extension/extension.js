@@ -4,9 +4,8 @@ import Shell from 'gi://Shell';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {NotesClient} from './client.js';
 import {NotesMenu} from './menu.js';
-import {NoteWindows} from './windows.js';
+import {NoteBoard} from './notes.js';
 
 const BEHAVIOR_KEYS = [
     'stick',
@@ -22,16 +21,13 @@ export default class StickyNotesExtension extends Extension {
         this._settings = this.getSettings();
         this._settingsIds = [];
         this._keysBound = false;
-        this._client = new NotesClient(this.path);
-        this._windows = new NoteWindows(this._settings, this._client);
-        this._menu = new NotesMenu(this.path, this._client, () => this.openPreferences());
+        this._board = new NoteBoard(this._settings);
+        this._menu = new NotesMenu(this.path, this._board, () => this.openPreferences());
 
         this._bindKeys();
         this._keysBound = true;
         this._watchSettings();
-        this._windows.watch();
         this._menu.addToPanel();
-        this._windows.onClientStarted();
     }
 
     disable() {
@@ -48,13 +44,9 @@ export default class StickyNotesExtension extends Extension {
             this._menu.destroy();
             this._menu = null;
         }
-        if (this._windows) {
-            this._windows.destroy();
-            this._windows = null;
-        }
-        if (this._client) {
-            this._client.destroy();
-            this._client = null;
+        if (this._board) {
+            this._board.destroy();
+            this._board = null;
         }
         this._settings = null;
     }
@@ -63,12 +55,11 @@ export default class StickyNotesExtension extends Extension {
         const flags = Meta.KeyBindingFlags.IGNORE_AUTOREPEAT;
         const mode = Shell.ActionMode.NORMAL;
         Main.wm.addKeybinding('new-note', this._settings, flags, mode, () => {
-            this._windows.holdFocus();
             const [x, y] = pointerCoords();
-            this._client.command(`create ${x} ${y}\n`);
+            this._board.create([x, y]);
         });
         Main.wm.addKeybinding('toggle-notes', this._settings, flags, mode, () => {
-            this._client.command('toggle\n');
+            this._board.toggle();
         });
     }
 
@@ -84,7 +75,7 @@ export default class StickyNotesExtension extends Extension {
 
     _watchSettings() {
         for (const key of BEHAVIOR_KEYS)
-            this._watch(key, () => this._windows.applyBehavior());
+            this._watch(key, () => this._board.applySettings());
         for (const key of ['new-note', 'toggle-notes'])
             this._watch(key, () => this._rebindKeys());
     }

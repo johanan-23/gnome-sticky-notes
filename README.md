@@ -6,27 +6,15 @@ Sticky Notes is free software under the GNU General Public License, version 2 or
 
 ## Install
 
-You need GNOME Shell 51 on Wayland, the Rust compiler, and the GTK 4 development files.
+You need GNOME Shell 51 on Wayland.
 
-On Debian or Ubuntu:
+Install Sticky Notes from Extension Manager, or from a checkout of this repository:
 
 ```bash
-sudo apt install build-essential pkg-config libgtk-4-dev
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-git clone <repository-url>
-cd sticky-notes
 ./install.sh
 ```
 
-On Fedora:
-
-```bash
-sudo dnf install gcc pkg-config gtk4-devel
-```
-
-Then install Rust the same way and run `./install.sh`.
-
-`install.sh` builds the notes program and copies the extension into `~/.local/share/gnome-shell/extensions/`. Log out and back in if the top-bar icon does not appear. The extension does not start the notes program. Run the `sticky-notes` binary it installed (under that extension directory's `bin` folder, or on your `PATH`) and leave it running.
+`install.sh` copies the extension into `~/.local/share/gnome-shell/extensions/`. Log out and back in if the top-bar icon does not appear. The first time it runs, a note is already on the desktop. The top-bar icon creates another.
 
 Notes are stored in `~/.local/share/sticky-notes/notes.json`.
 
@@ -41,18 +29,11 @@ The top-bar icon creates a note, hides or shows every note, and keeps a recycle 
 
 Both shortcuts can be changed or turned off in the extension settings. Backspace clears a shortcut.
 
-## Why there is a Rust program
+## Where the notes are drawn
 
-GNOME Shell extensions are JavaScript. The notes themselves are a separate program, `sticky-notes`, written in Rust and GTK 4. Shell JavaScript keeps its windows off the dock and places them. It talks to the program over a runtime socket and does not launch it. A Wayland application cannot place its own windows.
+The notes are actors in the Shell session, the same kind of widget as the top bar. They are not separate windows, so they stay off the dock, the app switcher, and the overview. An unfocused note can sit behind other windows. Creating a note does not start another process.
 
-Rust is only needed on a computer that **builds** the program. It is not needed to run it.
-
-- Installing the extension does not install Rust, Cargo, or a compiler.
-- The built program uses GTK 4, which is already part of GNOME. It does not carry its own copy of GTK.
-- The program is built for one processor type. A build on x86_64 does not run on an ARM computer. That computer builds its own copy with `./install.sh`.
-- This project's release build asks for glibc 2.34 or newer and links to the system `libgtk-4.so.1`. A GNOME 51 desktop already has those libraries.
-
-extensions.gnome.org does not compile projects, and its review rules forbid putting an executable inside the extension zip. A zip from that website can carry the JavaScript only. The notes program has to come from this repository, built on the computer that will run it.
+`src/` is an earlier GTK notes program. The extension does not launch it. A command sent to that program's socket only works while the program is already running, and extensions.gnome.org does not ship the executable, which is why an install from Extension Manager showed nothing after the extension was no longer allowed to start a process.
 
 ## Publishing to extensions.gnome.org
 
@@ -79,9 +60,9 @@ Each later upload needs a higher integer in `version` inside `extension/metadata
 
 | Path | What it is |
 | --- | --- |
-| `extension/` | The Shell extension: `extension.js`, `prefs.js`, settings schema, icon |
-| `src/` | The notes program |
-| `install.sh` | Build and install for the current user |
+| `extension/` | The Shell extension: `extension.js`, the notes, `prefs.js`, settings schema, icon |
+| `src/` | The earlier GTK notes program. The extension does not run it. |
+| `install.sh` | Install the extension for the current user |
 | `tools/pack.sh` | Build the zip for extensions.gnome.org |
 | `tools/cc`, `tools/gen-sysroot.sh` | Fallback linker for a machine that has GTK but no C compiler or gtk4 development files. A normal build does not use them. |
 
