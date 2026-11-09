@@ -546,6 +546,13 @@ export class NoteBoard {
             margin_left: 12,
             margin_right: 14,
         });
+        // ScrollView.child must implement St.Scrollable. Clutter.Text does not;
+        // St.BoxLayout does, and it holds the text.
+        const page = new St.BoxLayout({
+            x_expand: true,
+            y_expand: true,
+        });
+        page.add_child(text);
         const scroll = new St.ScrollView({
             style_class: 'sticky-note-scroll',
             overlay_scrollbars: true,
@@ -553,7 +560,7 @@ export class NoteBoard {
             vscrollbar_policy: St.PolicyType.EXTERNAL,
             x_expand: true,
             y_expand: true,
-            child: text,
+            child: page,
         });
         const resize = new St.Widget({
             style_class: 'sticky-note-resize',
