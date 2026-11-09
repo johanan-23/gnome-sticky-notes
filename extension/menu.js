@@ -104,15 +104,38 @@ export class NotesMenu {
             this._bin.menu.addMenuItem(restoreAll);
             this._bin.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         }
+        const list = new PopupMenu.PopupMenuSection();
         for (const item of status.trash) {
             const row = new PopupMenu.PopupImageMenuItem(item.label, 'document-revert-symbolic');
             const id = item.id;
             row.connect('activate', () => this._board.restore(id));
-            this._bin.menu.addMenuItem(row);
+            list.addMenuItem(row);
         }
+        this._bin.menu.addMenuItem(list);
+        this._scrollSection(this._bin.menu, list);
         this._bin.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         const clear = new PopupMenu.PopupImageMenuItem('Empty recycle bin', 'edit-delete-symbolic');
         clear.connect('activate', () => this._board.emptyTrash());
         this._bin.menu.addMenuItem(clear);
+    }
+
+    // The submenu only scrolls once the whole panel menu outgrows the
+    // screen, so a long bin would stretch it to full height. The deleted
+    // notes scroll in their own capped box instead, and the bin actions
+    // around them stay in view.
+    _scrollSection(menu, section) {
+        menu.box.remove_child(section.actor);
+        const scroll = new St.ScrollView({
+            style_class: 'sticky-notes-bin-list',
+            hscrollbar_policy: St.PolicyType.NEVER,
+            vscrollbar_policy: St.PolicyType.AUTOMATIC,
+            overlay_scrollbars: true,
+            child: section.actor,
+        });
+        menu.box.add_child(scroll);
+        // removeAll() finds menu items through _delegate, and the scroll box
+        // has to go when it destroys the section.
+        scroll._delegate = section;
+        section.connect('destroy', () => scroll.destroy());
     }
 }

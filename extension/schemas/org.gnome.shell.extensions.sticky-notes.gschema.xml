@@ -15,7 +15,8 @@
     </key>
     <key name="sink-unfocused" type="b">
       <default>true</default>
-      <summary>Place unfocused notes behind other windows</summary>
+      <summary>Raise the focused note above the other notes</summary>
+      <description>Notes stay on the desktop, underneath application windows.</description>
     </key>
     <key name="note-width" type="i">
       <default>230</default>

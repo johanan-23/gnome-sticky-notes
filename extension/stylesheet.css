@@ -39,6 +39,7 @@
 .sticky-swatch.aqua { background-color: #c9eee6; }
 
 .sticky-note-grip {
+    min-height: 18px;
     background-color: rgba(50, 47, 56, 0.05);
     border-radius: 12px 12px 0 0;
     cursor: grab;
@@ -50,6 +51,8 @@
 }
 
 .sticky-note-resize {
+    width: 18px;
+    height: 18px;
     background-color: rgba(50, 47, 56, 0.16);
     border-radius: 2px 0 11px 0;
     cursor: se-resize;
@@ -57,6 +60,58 @@
 
 .sticky-note-scroll {
     background-color: transparent;
+}
+
+.sticky-note-ribbon {
+    margin: 0 18px 8px 10px;
+    padding: 1px;
+    border-radius: 10px;
+    background-color: rgba(255, 252, 248, 0.94);
+    border: 1px solid rgba(50, 47, 56, 0.12);
+}
+
+.sticky-note-ribbon-row {
+    spacing: 0;
+}
+
+.sticky-note-tool {
+    min-width: 26px;
+    min-height: 24px;
+    padding: 2px 1px;
+    border-radius: 7px;
+    border-width: 0;
+    background-color: transparent;
+    box-shadow: none;
+    color: #322f38;
+}
+
+.sticky-note-ribbon-arrow {
+    min-width: 22px;
+    padding: 2px 0;
+    background-color: #fdfaf5;
+}
+
+.sticky-note-tool:hover {
+    background-color: rgba(50, 47, 56, 0.08);
+}
+
+.sticky-note-ribbon-arrow:hover {
+    background-color: #ebe8e4;
+}
+
+.sticky-note-tool.on {
+    background-color: rgba(50, 47, 56, 0.16);
+}
+
+.sticky-note-size {
+    font-size: 10pt;
+    font-weight: bold;
+    color: #322f38;
+    padding: 0 2px;
+}
+
+.sticky-notes-bin-list {
+    max-height: 280px;
 }
 
 .sticky-note-colors {

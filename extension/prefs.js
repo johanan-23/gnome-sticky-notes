@@ -30,8 +30,8 @@ export default class StickyNotesPreferences extends ExtensionPreferences {
         behavior.add(switchRow(
             settings,
             'sink-unfocused',
-            'Tuck unfocused notes behind other windows',
-            'The note you are typing in stays in front',
+            'Keep the note you are typing in front of the other notes',
+            'Notes stay on the desktop, underneath application windows.',
         ));
         page.add(behavior);
 
@@ -69,11 +69,20 @@ export default class StickyNotesPreferences extends ExtensionPreferences {
             title: 'Shortcuts',
             description: 'Click a row, then press the new keys. Backspace disables it.',
         });
-        shortcuts.add(new ShortcutRow(settings, 'new-note', 'New note at the pointer'));
-        shortcuts.add(new ShortcutRow(settings, 'toggle-notes', 'Show or hide every note'));
+        const shortcutRows = [
+            new ShortcutRow(settings, 'new-note', 'New note at the pointer'),
+            new ShortcutRow(settings, 'toggle-notes', 'Show or hide every note'),
+        ];
+        for (const row of shortcutRows)
+            shortcuts.add(row);
         page.add(shortcuts);
 
         window.add(page);
+        window.connect('close-request', () => {
+            for (const row of shortcutRows)
+                row.disconnectSettings();
+            return false;
+        });
     }
 }
 
@@ -92,32 +101,23 @@ function spinRow(settings, key, title, subtitle, lower, upper) {
             upper,
             step_increment: 10,
             page_increment: 40,
-            value: settings.get_int(key),
         }),
     });
-    row.connect('notify::value', () => {
-        const next = Math.round(row.get_value());
-        if (settings.get_int(key) !== next)
-            settings.set_int(key, next);
-    });
-    settings.connect(`changed::${key}`, () => {
-        const stored = settings.get_int(key);
-        if (Math.round(row.get_value()) !== stored)
-            row.set_value(stored);
-    });
+    settings.bind(key, row, 'value', Gio.SettingsBindFlags.DEFAULT);
     return row;
 }
 
+const SHORTCUT_HINT = 'Click, then press the new keys';
+
 const ShortcutRow = GObject.registerClass(class ShortcutRow extends Adw.ActionRow {
-    _init(settings, key, title) {
-        super._init({
+    constructor(settings, key, title) {
+        super({
             title,
-            subtitle: 'Click, then press the new keys',
+            subtitle: SHORTCUT_HINT,
             activatable: true,
         });
         this._settings = settings;
         this._key = key;
-        this._hint = 'Click, then press the new keys';
         this._listening = false;
         this.focusable = true;
 
@@ -141,9 +141,13 @@ const ShortcutRow = GObject.registerClass(class ShortcutRow extends Adw.ActionRo
             this.subtitle = 'Press a shortcut. Backspace disables it. Escape cancels.';
             this.grab_focus();
         });
-        settings.connect(`changed::${key}`, () => {
+        this._changedId = settings.connect(`changed::${key}`, () => {
             this._label.accelerator = settings.get_strv(key)[0] || '';
         });
+    }
+
+    disconnectSettings() {
+        this._settings.disconnect(this._changedId);
     }
 
     _onKey(keyval, state) {
@@ -176,6 +180,6 @@ const ShortcutRow = GObject.registerClass(class ShortcutRow extends Adw.ActionRo
 
     _stop() {
         this._listening = false;
-        this.subtitle = this._hint;
+        this.subtitle = SHORTCUT_HINT;
     }
 });

@@ -19,35 +19,21 @@ const BEHAVIOR_KEYS = [
 export default class StickyNotesExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
-        this._settingsIds = [];
-        this._keysBound = false;
         this._board = new NoteBoard(this._settings);
         this._menu = new NotesMenu(this.path, this._board, () => this.openPreferences());
 
         this._bindKeys();
-        this._keysBound = true;
         this._watchSettings();
         this._menu.addToPanel();
     }
 
     disable() {
-        if (this._keysBound) {
-            this._unbindKeys();
-            this._keysBound = false;
-        }
-        if (this._settings) {
-            for (const id of this._settingsIds)
-                this._settings.disconnect(id);
-            this._settingsIds = [];
-        }
-        if (this._menu) {
-            this._menu.destroy();
-            this._menu = null;
-        }
-        if (this._board) {
-            this._board.destroy();
-            this._board = null;
-        }
+        this._unbindKeys();
+        this._settings.disconnectObject(this);
+        this._menu.destroy();
+        this._menu = null;
+        this._board.destroy();
+        this._board = null;
         this._settings = null;
     }
 
@@ -75,13 +61,9 @@ export default class StickyNotesExtension extends Extension {
 
     _watchSettings() {
         for (const key of BEHAVIOR_KEYS)
-            this._watch(key, () => this._board.applySettings());
+            this._settings.connectObject(`changed::${key}`, () => this._board.applySettings(), this);
         for (const key of ['new-note', 'toggle-notes'])
-            this._watch(key, () => this._rebindKeys());
-    }
-
-    _watch(key, callback) {
-        this._settingsIds.push(this._settings.connect(`changed::${key}`, callback));
+            this._settings.connectObject(`changed::${key}`, () => this._rebindKeys(), this);
     }
 }
 

@@ -1,6 +1,8 @@
 // Note documents and placement. No Shell or GI imports, so the rules can be
 // checked outside a session. The on-disk shape matches notes.json.
 
+import {lineMark} from './format.js';
+
 export const PALETTE = [
     'sand', 'blossom', 'mint', 'sky', 'lilac', 'peach', 'lemon', 'cream',
     'apricot', 'coral', 'rose', 'mauve', 'iris', 'mist', 'sage', 'aqua',
@@ -34,15 +36,11 @@ export const MIN_H = 112;
 export const TRASH_LIMIT = 40;
 export const NOTE_GAP = 16;
 
-const BOX_OPEN = '\u2610';
-const BOX_DONE = '\u2611';
-const TEXT_STYLE = '\ufe0e';
-const BULLET = '\u2022';
-
 export const WELCOME_TEXT = [
     'Drag the top edge to move.',
     'Drag the corner to resize.',
     'Right-click to pick a color.',
+    'Click the text for bold, italic, and lists.',
     '',
     'The note icon on the top bar opens the note menu.',
     '',
@@ -98,6 +96,23 @@ function copySpans(spans) {
     return out;
 }
 
+function copySizes(sizes) {
+    if (!Array.isArray(sizes))
+        return [];
+    const out = [];
+    for (const run of sizes) {
+        if (!run || typeof run !== 'object')
+            continue;
+        const {start, end, size} = run;
+        if (!Number.isInteger(start) || !Number.isInteger(end) || !Number.isInteger(size))
+            continue;
+        if (start < 0 || end <= start || size < 6 || size > 72)
+            continue;
+        out.push({start, end, size});
+    }
+    return out;
+}
+
 function normalizeNote(raw, workspace) {
     if (!raw || typeof raw !== 'object')
         return null;
@@ -126,6 +141,7 @@ function normalizeNote(raw, workspace) {
         locked: raw.locked === true,
         text: typeof raw.text === 'string' ? raw.text : '',
         spans: copySpans(raw.spans),
+        sizes: copySizes(raw.sizes),
         workspace: storedSpace,
     };
 }
@@ -164,9 +180,7 @@ export function decodeStore(bytes, workspace = 0) {
     let data;
     try {
         data = JSON.parse(text);
-    } catch (error) {
-        if (error.name !== 'SyntaxError')
-            throw error;
+    } catch {
         return null;
     }
     if (!data || typeof data !== 'object' || !Array.isArray(data.notes))
@@ -188,6 +202,7 @@ export function encodeStore(store) {
         locked: item.locked === true,
         text: item.text,
         spans: item.spans,
+        sizes: item.sizes ?? [],
         workspace: item.workspace,
     });
     return {
@@ -206,7 +221,7 @@ export function trimTrash(store) {
 
 export function welcomeNote(areas, id, workspace) {
     const w = 240;
-    const h = 196;
+    const h = 220;
     const area = areas[0];
     const x = area ? area.x + Math.trunc((area.w - w) / 2) : 160;
     const y = area ? area.y + Math.trunc((area.h - h) / 2) : 120;
@@ -223,26 +238,9 @@ export function welcomeNote(areas, id, workspace) {
         locked: false,
         text: WELCOME_TEXT,
         spans: [],
+        sizes: [],
         workspace,
     };
-}
-
-function lineMarkLength(line) {
-    const chars = [...line];
-    if (!chars.length)
-        return null;
-    const first = chars[0];
-    if (first === BOX_OPEN || first === BOX_DONE) {
-        let n = 1;
-        if (chars[1] === TEXT_STYLE)
-            n += 1;
-        if (chars[n] === ' ')
-            n += 1;
-        return n;
-    }
-    if (first === BULLET)
-        return chars[1] === ' ' ? 2 : 1;
-    return null;
 }
 
 export function trashLabel(text) {
@@ -251,8 +249,8 @@ export function trashLabel(text) {
         const trimmed = line.trim();
         if (!trimmed)
             continue;
-        const mark = lineMarkLength(trimmed);
-        const body = (mark === null ? trimmed : [...trimmed].slice(mark).join('')).trim();
+        const mark = lineMark(trimmed);
+        const body = (mark ? [...trimmed].slice(mark.chars).join('') : trimmed).trim();
         if (body) {
             preview = body;
             break;
