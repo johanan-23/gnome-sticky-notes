@@ -1,0 +1,20 @@
+{
+  "name": "gnome-sticky-notes",
+  "private": true,
+  "description": "Development checks for the Sticky Notes GNOME Shell extension. Nothing here is shipped in the extension zip.",
+  "license": "GPL-2.0-or-later",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "lint": "eslint extension tests",
+    "test": "node --test tests/*.test.js",
+    "check": "npm run lint && npm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.15.0",
+    "globals": "^17.14.0"
+  }
+}

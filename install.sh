@@ -9,7 +9,7 @@ mkdir -p "$ext/schemas"
 cp extension/metadata.json extension/*.js extension/stylesheet.css "$ext/"
 # Drop the socket client and window adopter from older installs.
 rm -f "$ext/client.js" "$ext/windows.js"
-rm -rf "$ext/icons" "$ext/bin"
+rm -rf "${ext:?}/icons" "${ext:?}/bin"
 cp -a extension/icons "$ext/"
 cp extension/schemas/org.gnome.shell.extensions.sticky-notes.gschema.xml "$ext/schemas/"
 glib-compile-schemas "$ext/schemas"

@@ -1,0 +1,41 @@
+name: Release
+
+# Push a tag such as v3 to publish a GitHub release with the upload zip
+# attached. Uploading to extensions.gnome.org stays a manual step: it
+# needs your account password and goes through human review.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: Publish GitHub release
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: shell-extension-zip
+          path: dist
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" dist/*.shell-extension.zip \
+            --title "Sticky Notes $TAG" \
+            --generate-notes \
+            --verify-tag

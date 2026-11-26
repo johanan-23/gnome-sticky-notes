@@ -66,27 +66,38 @@ gnome-extensions prefs sticky-notes@johanan.in
 
 If you add or rename a key in `extension/schemas/org.gnome.shell.extensions.sticky-notes.gschema.xml`, `install.sh` recompiles the schema. Do not commit `gschemas.compiled`.
 
-### Lint (optional)
+### Checks
 
-[shexli](https://pypi.org/project/shexli/) checks the extension against the rules extensions.gnome.org uses. Running it before a PR catches most problems a reviewer would raise:
+CI runs these on every pull request and on every push to `master`. You can run the same checks locally before opening a PR.
+
+ESLint and the unit tests for the pure note logic (`format.js`, `model.js`) need Node.js 22 or newer:
+
+```bash
+npm ci
+npm run check
+```
+
+To build the upload zip and check it against the extensions.gnome.org review rules, using [shexli](https://pypi.org/project/shexli/) when it is installed:
 
 ```bash
 ./tools/pack.sh
 python3 -m venv .venv
 . .venv/bin/activate
-pip install -U shexli
-shexli dist/sticky-notes@johanan.in.shell-extension.zip
+pip install shexli==0.2.1
+python3 tools/check-ego.py dist/sticky-notes@johanan.in.shell-extension.zip
 ```
 
-Shexli may report `shell-version` 51 as a future release. That is expected; leave `"51"` in `extension/metadata.json`.
+shexli reports `shell-version` 51 as a future release (`EGO-M-004`). That check is out of date, and `check-ego.py` ignores it. Leave `"51"` in `extension/metadata.json`.
+
+Each CI run attaches the built zip as an artifact. Pushing a tag such as `v3` publishes a GitHub release with the zip attached. Uploading to extensions.gnome.org is still done by hand.
 
 ## Contributing
 
 1. Fork the repository on GitHub and clone your fork.
-2. Create a branch from `main` with a short descriptive name, for example `fix-note-resize`.
+2. Create a branch from `master` with a short descriptive name, for example `fix-note-resize`.
 3. Make your change, install it with `./install.sh`, and try it in a real or nested Shell. Check the journal for errors.
 4. Keep commits focused, and write commit messages that say what changed and why.
-5. Push the branch to your fork and open a pull request against `main`. In the description, say what the change does, how you tested it, and include a screenshot or short recording for anything visible.
+5. Push the branch to your fork and open a pull request against `master`. In the description, say what the change does, how you tested it, and include a screenshot or short recording for anything visible.
 
 Please do not bump `version` in `extension/metadata.json` or commit anything from `dist/`; the maintainer handles releases.
 
@@ -101,4 +112,7 @@ If you are unsure whether a change is wanted, open an issue first to discuss it.
 | `src/` | The earlier GTK notes program. The extension does not run it. |
 | `install.sh` | Install the extension from this checkout for the current user |
 | `tools/pack.sh` | Build the extension zip into `dist/` |
+| `tools/check-ego.py` | Check the built zip against the extensions.gnome.org review rules |
+| `tests/` | Unit tests for `extension/format.js` and `extension/model.js` (`npm test`) |
+| `.github/workflows/` | CI (lint, tests, schema, zip check) and tag-triggered releases |
 | `tools/cc`, `tools/gen-sysroot.sh` | Fallback linker for building `src/` on a machine without a C compiler or gtk4 development files. Not needed for extension work. |
