@@ -171,6 +171,10 @@ const ShortcutRow = GObject.registerClass(class ShortcutRow extends Adw.ActionRo
         if (modifiers.includes(keyval))
             return Gdk.EVENT_STOP;
         const mask = state & Gtk.accelerator_get_default_mod_mask();
+        // A global shortcut on a bare key would swallow that key everywhere.
+        // Keep listening until a modifier is held (function keys excepted).
+        if (!mask && !(keyval >= Gdk.KEY_F1 && keyval <= Gdk.KEY_F35))
+            return Gdk.EVENT_STOP;
         const accel = Gtk.accelerator_name(keyval, mask);
         if (accel)
             this._settings.set_strv(this._key, [accel]);
