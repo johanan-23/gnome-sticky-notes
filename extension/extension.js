@@ -10,6 +10,7 @@ import {NoteBoard} from './notes.js';
 const BEHAVIOR_KEYS = [
     'stick',
     'sink-unfocused',
+    'always-on-top',
     'note-width',
     'note-height',
     'max-width',
@@ -20,7 +21,7 @@ export default class StickyNotesExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
         this._board = new NoteBoard(this._settings);
-        this._menu = new NotesMenu(this.path, this._board, () => this.openPreferences());
+        this._menu = new NotesMenu(this.path, this._board, this._settings, () => this.openPreferences());
 
         this._bindKeys();
         this._watchSettings();

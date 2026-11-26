@@ -33,6 +33,12 @@ export default class StickyNotesPreferences extends ExtensionPreferences {
             'Keep the note you are typing in front of the other notes',
             'Notes stay on the desktop, underneath application windows.',
         ));
+        behavior.add(switchRow(
+            settings,
+            'always-on-top',
+            'Keep all notes on top',
+            'Notes stay above application windows. A single note can be kept on top from its menu.',
+        ));
         page.add(behavior);
 
         const size = new Adw.PreferencesGroup({

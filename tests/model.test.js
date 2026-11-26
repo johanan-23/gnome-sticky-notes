@@ -55,6 +55,13 @@ describe('normalizeStore', () => {
         assert.equal(note.locked, false);
     });
 
+    it('keeps the always-on-top flag and defaults it off', () => {
+        const store = normalizeStore({notes: [{id: 1, on_top: true}, {id: 2}]});
+        assert.deepEqual(store.notes.map(note => note.on_top), [true, false]);
+        const saved = encodeStore(store);
+        assert.deepEqual(saved.notes.map(note => note.on_top), [true, false]);
+    });
+
     it('wraps colour indexes into the palette', () => {
         const [note] = normalizeStore({notes: [{id: 1, color: -1}]}).notes;
         assert.equal(note.color, 15);

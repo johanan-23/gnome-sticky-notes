@@ -136,3 +136,10 @@
 .sticky-swatch.current {
     border-color: rgba(50, 47, 56, 0.78);
 }
+
+/* Shortcut hints in the note menu. */
+.sticky-note-accel {
+    padding-left: 24px;
+    font-size: 0.9em;
+    opacity: 0.6;
+}

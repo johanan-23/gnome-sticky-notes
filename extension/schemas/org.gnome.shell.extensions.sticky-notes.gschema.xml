@@ -18,6 +18,11 @@
       <summary>Raise the focused note above the other notes</summary>
       <description>Notes stay on the desktop, underneath application windows.</description>
     </key>
+    <key name="always-on-top" type="b">
+      <default>false</default>
+      <summary>Keep every note above application windows</summary>
+      <description>Each note can also be kept on top on its own from its menu.</description>
+    </key>
     <key name="note-width" type="i">
       <default>230</default>
       <range min="180" max="960"/>

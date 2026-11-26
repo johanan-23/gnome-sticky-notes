@@ -33,7 +33,7 @@ jobs:
       - name: ESLint
         run: npx eslint extension tests eslint.config.js
 
-      - name: Unit tests (format.js, model.js)
+      - name: Unit tests (format.js, model.js, history.js)
         run: npm test
 
       - name: ShellCheck

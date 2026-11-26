@@ -10,6 +10,10 @@ const DING_APP_IDS = new Set(['com.rastersoft.ding', 'com.rastersoft.dingtest'])
 // underneath it is visible and still cannot be clicked. The layer is kept
 // directly above that window and below ordinary windows. It is never parented
 // above the window group: that paints it over Alt+Tab.
+//
+// Notes kept on top live in a second layer, the last child of the window
+// group. Mutter lowers every window actor to the bottom when it restacks, so
+// that layer stays above all windows and still under the Shell's own UI.
 export class DesktopLayer {
     constructor() {
         this._seatLater = 0;
@@ -22,6 +26,13 @@ export class DesktopLayer {
             y: 0,
         });
         this.actor.set_no_layout(true);
+        this.top = new St.Widget({
+            name: 'sticky-notes-top',
+            reactive: false,
+            x: 0,
+            y: 0,
+        });
+        this.top.set_no_layout(true);
 
         global.stage.connectObject(
             'notify::width', () => this._syncSize(),
@@ -29,7 +40,7 @@ export class DesktopLayer {
             this);
         global.window_group.connectObject(
             'child-added', (_group, child) => {
-                if (child !== this.actor)
+                if (child !== this.actor && child !== this.top)
                     this._seatSoon();
             },
             this);
@@ -64,6 +75,8 @@ export class DesktopLayer {
         global.stage.disconnectObject(this);
         global.window_group.disconnectObject(this);
         global.display.disconnectObject(this);
+        this.top.destroy();
+        this.top = null;
         this.actor.destroy();
         this.actor = null;
     }
@@ -82,6 +95,10 @@ export class DesktopLayer {
         } else if (windows.get_first_child() !== this.actor) {
             windows.set_child_at_index(this.actor, 0);
         }
+        if (this.top.get_parent() !== windows)
+            windows.add_child(this.top);
+        else if (windows.get_last_child() !== this.top)
+            windows.set_child_above_sibling(this.top, null);
     }
 
     // Before the next frame, not on idle: an idle runs after the frame is
@@ -132,7 +149,7 @@ export class DesktopLayer {
         const background = Main.layoutManager._backgroundGroup;
         let desktop = null;
         for (let child = windows.get_first_child(); child; child = child.get_next_sibling()) {
-            if (child === this.actor)
+            if (child === this.actor || child === this.top)
                 continue;
             if (child === background || this._isDesktopActor(child))
                 desktop = child;
@@ -156,5 +173,6 @@ export class DesktopLayer {
 
     _syncSize() {
         this.actor.set_size(global.stage.width, global.stage.height);
+        this.top.set_size(global.stage.width, global.stage.height);
     }
 }
