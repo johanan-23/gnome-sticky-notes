@@ -54,6 +54,7 @@ import {
     trimTrash,
     welcomeNote,
 } from './model.js';
+import {EditHistory} from './history.js';
 import {DesktopLayer} from './layer.js';
 import {NoteRibbon} from './ribbon.js';
 
@@ -190,6 +191,8 @@ export class NoteBoard {
     applySettings() {
         this._whenReady(() => {
             this._clampAll();
+            for (const view of this._views.values())
+                this._place(view);
             if (this._focused)
                 this._orderNote(this._focused);
             this._applyVisibility();
@@ -205,6 +208,7 @@ export class NoteBoard {
         }
         return {
             hidden: this._store.hidden === true,
+            onTop: this._settings.get_boolean('always-on-top'),
             notes: this._store.notes.length,
             trash,
         };
@@ -450,6 +454,7 @@ export class NoteBoard {
             size: 13,
             collapsed: false,
             locked: false,
+            on_top: false,
             text: '',
             spans: [],
             sizes: [],
@@ -535,7 +540,7 @@ export class NoteBoard {
         const view = this._build(note);
         this._views.set(note.id, view);
         this._desktop.seat();
-        this._layer.add_child(view.frame);
+        this._layerFor(view).add_child(view.frame);
         this._clampNote(note);
         this._layout(view);
         this._paint(view);
@@ -662,6 +667,8 @@ export class NoteBoard {
             focusId: 0,
             newlineId: 0,
             revealId: 0,
+            history: new EditHistory(),
+            batch: false,
         };
         editClick.connectObject('recognize', () => {
             if (!view.note.locked)
@@ -830,12 +837,7 @@ export class NoteBoard {
 
     _focus(view, grabText) {
         this._focused = view;
-        const parent = view.frame.get_parent();
-        if (parent && parent !== this._layer) {
-            parent.remove_child(view.frame);
-            this._layer.add_child(view.frame);
-            this._layout(view);
-        }
+        this._place(view);
         this._orderNote(view);
         if (grabText && !view.note.locked && view.frame.visible) {
             view.editing = true;
@@ -847,8 +849,42 @@ export class NoteBoard {
     _orderNote(view) {
         if (!this._settings.get_boolean('sink-unfocused'))
             return;
-        if (view.frame.get_parent() === this._layer)
-            this._layer.set_child_above_sibling(view.frame, null);
+        const parent = view.frame.get_parent();
+        if (parent === this._layer || parent === this._desktop.top)
+            parent.set_child_above_sibling(view.frame, null);
+    }
+
+    _isOnTop(view) {
+        return view.note.on_top === true || this._settings.get_boolean('always-on-top');
+    }
+
+    _layerFor(view) {
+        return this._isOnTop(view) ? this._desktop.top : this._layer;
+    }
+
+    // Moves the note between the desktop layer and the on-top layer. Moving
+    // an actor drops its key focus, so a note being typed in gets it back.
+    _place(view) {
+        const target = this._layerFor(view);
+        const parent = view.frame.get_parent();
+        if (parent === target)
+            return;
+        const typing = global.stage.get_key_focus() === view.text;
+        if (parent)
+            parent.remove_child(view.frame);
+        target.add_child(view.frame);
+        this._layout(view);
+        if (typing && view.frame.visible) {
+            view.editing = true;
+            view.text.grab_key_focus();
+        }
+    }
+
+    _toggleOnTop(view) {
+        view.note.on_top = !view.note.on_top;
+        this._place(view);
+        this._orderNote(view);
+        this._scheduleSave();
     }
 
     _blur() {
@@ -873,7 +909,7 @@ export class NoteBoard {
     // Every note frame lives in the layer, so reaching the layer covers them.
     _eventHitsUs(actor) {
         while (actor) {
-            if (actor === this._layer)
+            if (actor === this._layer || actor === this._desktop.top)
                 return true;
             if (this._menu && actor === this._menu.actor)
                 return true;
@@ -925,6 +961,8 @@ export class NoteBoard {
             this._openMenu(view);
             return Clutter.EVENT_STOP;
         }
+        if (event.get_button() === BUTTON_PRIMARY)
+            view.history.seal();
         this._focus(view, !view.note.locked);
         return Clutter.EVENT_PROPAGATE;
     }
@@ -1081,11 +1119,19 @@ export class NoteBoard {
                 return true;
             }
         }
-        if (text.cursor_position !== text.selection_bound)
-            text.delete_selection();
-        // Clutter reports -1 for the end of the text.
-        const at = text.cursor_position < 0 ? Array.from(text.text).length : text.cursor_position;
-        text.insert_text('\n', at);
+        // Replacing a selection is two text changes; undo takes back both.
+        view.history.seal();
+        this._record(view);
+        view.batch = true;
+        try {
+            if (text.cursor_position !== text.selection_bound)
+                text.delete_selection();
+            // Clutter reports -1 for the end of the text.
+            const at = text.cursor_position < 0 ? Array.from(text.text).length : text.cursor_position;
+            text.insert_text('\n', at);
+        } finally {
+            view.batch = false;
+        }
         return true;
     }
 
@@ -1098,7 +1144,21 @@ export class NoteBoard {
         }
         if (MOVE_KEYS.has(key)) {
             this._dropHold(view);
+            view.history.seal();
             return Clutter.EVENT_PROPAGATE;
+        }
+        if (control && this._onEditShortcut(view, key, event.get_state()))
+            return Clutter.EVENT_STOP;
+        if (!control && (event.get_state() & Clutter.ModifierType.SHIFT_MASK)) {
+            if (key === Clutter.KEY_Insert || key === Clutter.KEY_KP_Insert) {
+                this._paste(view);
+                return Clutter.EVENT_STOP;
+            }
+            if ((key === Clutter.KEY_Delete || key === Clutter.KEY_KP_Delete) &&
+                view.text.cursor_position !== view.text.selection_bound) {
+                this._cut(view);
+                return Clutter.EVENT_STOP;
+            }
         }
         if (!control && ENTER_KEYS.has(key))
             return this._insertNewline(view) ? Clutter.EVENT_STOP : Clutter.EVENT_PROPAGATE;
@@ -1121,6 +1181,8 @@ export class NoteBoard {
         if (next === prev)
             return;
         const edit = editRange(prev, next);
+        if (!view.batch)
+            this._recordEdit(view, edit, next);
         if (edit.removed === 1 && edit.inserted === 0) {
             const marker = backspaceMarker(prev, edit.start + 1);
             if (marker) {
@@ -1178,12 +1240,14 @@ export class NoteBoard {
             const pending = view.pendingText;
             view.pendingText = null;
             if (pending)
-                this._commitText(view, pending.text, pending.cursor, pending.spans, pending.sizes);
+                this._commitText(view, pending.text, pending.cursor, pending.spans, pending.sizes, false);
             return GLib.SOURCE_REMOVE;
         });
     }
 
-    _commitText(view, text, cursor, spans = null, sizes = null) {
+    _commitText(view, text, cursor, spans = null, sizes = null, record = true) {
+        if (record && text !== view.note.text)
+            this._record(view);
         spans ??= retargetSpans(view.note.spans, view.note.text, text);
         sizes ??= retargetSizes(view.note.sizes, view.note.text, text);
         view.rewrite = true;
@@ -1196,6 +1260,147 @@ export class NoteBoard {
         this._showAttrs(view);
         this._syncRibbon(view);
         this._scheduleSave();
+    }
+
+    _snapshot(view, cursor = this._range(view)[1]) {
+        return {
+            text: view.note.text,
+            spans: view.note.spans,
+            sizes: view.note.sizes,
+            cursor,
+        };
+    }
+
+    _record(view, kind = 'edit', at = -1, cursor = undefined) {
+        view.history.record(this._snapshot(view, cursor), kind, at);
+    }
+
+    // Called from text-changed, while view.note still holds the old text.
+    // Single typed characters and single deletions fold into one step.
+    _recordEdit(view, edit, next) {
+        let kind = 'edit';
+        let at = edit.start;
+        let cursor = edit.start + edit.removed;
+        if (edit.inserted === 1 && edit.removed === 0) {
+            const char = Array.from(next)[edit.start];
+            // A space or newline ends the word, so undo goes back a word at a time.
+            if (char !== '\n' && char !== ' ')
+                kind = 'insert';
+            cursor = edit.start;
+        } else if (edit.removed === 1 && edit.inserted === 0) {
+            kind = 'delete';
+            // The caret sat after the removed character for backspace and
+            // before it for delete; the history only needs the position.
+            at = edit.start;
+            cursor = edit.start + 1;
+        }
+        this._record(view, kind, at, cursor);
+    }
+
+    _undo(view) {
+        if (view.note.locked)
+            return;
+        this._applySnapshot(view, view.history.undo(this._snapshot(view)));
+    }
+
+    _redo(view) {
+        if (view.note.locked)
+            return;
+        this._applySnapshot(view, view.history.redo(this._snapshot(view)));
+    }
+
+    _applySnapshot(view, state) {
+        if (!state)
+            return;
+        this._dropHold(view);
+        const length = Array.from(state.text).length;
+        const cursor = Math.max(0, Math.min(state.cursor ?? length, length));
+        this._commitText(view, state.text, cursor, state.spans, state.sizes, false);
+        this._keepTyping(view);
+    }
+
+    // Ctrl+Z undo, Ctrl+Shift+Z or Ctrl+Y redo, Ctrl+X/C/V, and the
+    // Ctrl+Insert, Shift+Insert, Shift+Delete forms of the clipboard keys.
+    _onEditShortcut(view, key, state) {
+        const shift = (state & Clutter.ModifierType.SHIFT_MASK) !== 0;
+        switch (key) {
+        case Clutter.KEY_z:
+        case Clutter.KEY_Z:
+            if (shift)
+                this._redo(view);
+            else
+                this._undo(view);
+            return true;
+        case Clutter.KEY_y:
+        case Clutter.KEY_Y:
+            this._redo(view);
+            return true;
+        case Clutter.KEY_x:
+        case Clutter.KEY_X:
+            this._cut(view);
+            return true;
+        case Clutter.KEY_c:
+        case Clutter.KEY_C:
+        case Clutter.KEY_Insert:
+        case Clutter.KEY_KP_Insert:
+            this._copy(view);
+            return true;
+        case Clutter.KEY_v:
+        case Clutter.KEY_V:
+            this._paste(view);
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    _selectedText(view, [start, end]) {
+        return Array.from(view.note.text).slice(start, end).join('');
+    }
+
+    _copy(view, range = this._range(view)) {
+        if (range[0] === range[1])
+            return false;
+        St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, this._selectedText(view, range));
+        return true;
+    }
+
+    _cut(view, range = this._range(view)) {
+        if (view.note.locked || !this._copy(view, range))
+            return;
+        this._replaceRange(view, range, '');
+    }
+
+    // The clipboard answers later. If the note changed meanwhile, the text
+    // goes where the caret is then.
+    _paste(view, range = null) {
+        if (view.note.locked)
+            return;
+        const asked = view.note.text;
+        St.Clipboard.get_default().get_text(St.ClipboardType.CLIPBOARD, (_clipboard, text) => {
+            if (!text || this._views.get(view.note.id) !== view || view.note.locked)
+                return;
+            const at = range && view.note.text === asked ? range : this._range(view);
+            this._replaceRange(view, at, text.replace(/\r\n?/g, '\n'));
+        });
+    }
+
+    // One undo step, however many text-changed signals Clutter emits.
+    _replaceRange(view, [start, end], insert) {
+        view.history.seal();
+        this._record(view, 'edit', -1, end);
+        view.batch = true;
+        try {
+            if (start !== end)
+                view.text.delete_text(start, end);
+            if (insert)
+                view.text.insert_text(insert, start);
+        } finally {
+            view.batch = false;
+        }
+        const caret = start + Array.from(insert).length;
+        view.text.set_selection(caret, caret);
+        this._keepTyping(view);
     }
 
     _anchor(view) {
@@ -1220,6 +1425,7 @@ export class NoteBoard {
         const length = Array.from(view.note.text).length;
         const [start, end] = view.anchor ?? this._range(view);
         if (start !== end) {
+            this._record(view);
             const result = toggleBit(view.note.spans, length, start, end, bit);
             view.note.spans = result.spans;
             view.pending = result.bits;
@@ -1254,6 +1460,7 @@ export class NoteBoard {
         const length = Array.from(view.note.text).length;
         const [start, end] = view.anchor ?? this._range(view);
         if (start !== end) {
+            this._record(view);
             view.note.sizes = stepSizes(view.note.sizes, length, start, end, base, delta);
             const picked = selectionSize(view.note.sizes, length, start, end, base);
             if (picked !== null) {
@@ -1480,6 +1687,7 @@ export class NoteBoard {
             size: source.size,
             collapsed: false,
             locked: false,
+            on_top: source.on_top === true,
             text: source.text,
             spans: source.spans.map(span => ({...span})),
             sizes: source.sizes.map(run => ({...run})),
@@ -1500,9 +1708,15 @@ export class NoteBoard {
     }
 
     _openMenu(view) {
+        // Taken before the menu moves key focus, so the clipboard items act
+        // on what was selected.
+        const range = this._range(view);
         this._closeMenu();
         this._focus(view, false);
         const menu = new PopupMenu.PopupMenu(view.grip, 0.0, St.Side.TOP);
+        // The menu is built on every open, so it picks up a theme switch.
+        menu.actor.add_style_class_name(
+            Main.getStyleVariant() === 'light' ? 'sticky-menu-light' : 'sticky-menu-dark');
         const colors = new St.BoxLayout({
             orientation: Clutter.Orientation.VERTICAL,
             style_class: 'sticky-note-colors',
@@ -1540,12 +1754,55 @@ export class NoteBoard {
         const later = fn => {
             this._menuThen = fn;
         };
+        const editable = !view.note.locked;
+        const selected = range[0] !== range[1];
+        // One row of icon buttons. The shortcut is in the accessible name.
+        const tools = new St.BoxLayout({
+            style_class: 'sticky-menu-tools',
+            x_expand: true,
+            x_align: Clutter.ActorAlign.CENTER,
+        });
+        const tool = (label, icon, sensitive, fn) => {
+            const button = new St.Button({
+                style_class: 'sticky-menu-tool',
+                child: new St.Icon({icon_name: icon, icon_size: 16}),
+                can_focus: sensitive,
+                reactive: sensitive,
+                accessible_name: label,
+            });
+            if (!sensitive)
+                button.add_style_pseudo_class('insensitive');
+            button.connectObject('clicked', () => {
+                later(fn);
+                menu.close();
+            }, this);
+            tools.add_child(button);
+        };
+        tool('Cut (Ctrl+X)', 'edit-cut-symbolic', editable && selected,
+            () => this._cut(view, range));
+        tool('Copy (Ctrl+C)', 'edit-copy-symbolic', selected,
+            () => this._copy(view, range));
+        tool('Paste (Ctrl+V)', 'edit-paste-symbolic', editable,
+            () => this._paste(view, range));
+        tool('Undo (Ctrl+Z)', 'edit-undo-symbolic', editable && view.history.canUndo(),
+            () => this._undo(view));
+        tool('Redo (Ctrl+Shift+Z)', 'edit-redo-symbolic', editable && view.history.canRedo(),
+            () => this._redo(view));
+        menu.box.add_child(tools);
+        menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         menu.addAction('New note', () => later(() => this._create(null)), 'document-new-symbolic');
         menu.addAction('Duplicate', () => later(() => this._duplicate(view)), 'view-dual-symbolic');
         menu.addAction(
             view.note.locked ? 'Unlock' : 'Lock',
             () => later(() => this._toggleLock(view)),
             view.note.locked ? 'changes-prevent-symbolic' : 'changes-allow-symbolic');
+        const everyNote = this._settings.get_boolean('always-on-top');
+        const onTop = new PopupMenu.PopupSwitchMenuItem(
+            everyNote ? 'Always on top (all notes)' : 'Always on top',
+            everyNote || view.note.on_top === true);
+        onTop.setSensitive(!everyNote);
+        onTop.connect('toggled', () => later(() => this._toggleOnTop(view)));
+        menu.addMenuItem(onTop);
         menu.addAction('Smaller text', () => later(() => this._stepSize(view, -1)), 'zoom-out-symbolic');
         menu.addAction('Larger text', () => later(() => this._stepSize(view, 1)), 'zoom-in-symbolic');
         menu.addAction('Delete', () => later(() => this._delete(view)), 'user-trash-symbolic');

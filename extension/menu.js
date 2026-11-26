@@ -7,8 +7,9 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 export class NotesMenu {
-    constructor(extensionPath, board, openPreferences) {
+    constructor(extensionPath, board, settings, openPreferences) {
         this._board = board;
+        this._settings = settings;
         this._openPreferences = openPreferences;
 
         const iconPath = GLib.build_filenamev([
@@ -34,6 +35,12 @@ export class NotesMenu {
         this._hideItem.connect('activate', () => this._board.toggle());
         menu.addMenuItem(this._hideItem);
 
+        this._onTopItem = new PopupMenu.PopupSwitchMenuItem('Keep all notes on top', false);
+        this._onTopItem.connect('toggled', (_item, state) => {
+            this._settings.set_boolean('always-on-top', state);
+        });
+        menu.addMenuItem(this._onTopItem);
+
         this._deleteAll = new PopupMenu.PopupSubMenuMenuItem('Delete all notes', true);
         this._deleteAll.icon.icon_name = 'user-trash-symbolic';
         const confirmDelete = new PopupMenu.PopupImageMenuItem(
@@ -51,9 +58,9 @@ export class NotesMenu {
         menu.addMenuItem(this._bin);
 
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        const settings = new PopupMenu.PopupImageMenuItem('Settings', 'emblem-system-symbolic');
-        settings.connect('activate', () => this._openPreferences());
-        menu.addMenuItem(settings);
+        const prefs = new PopupMenu.PopupImageMenuItem('Settings', 'emblem-system-symbolic');
+        prefs.connect('activate', () => this._openPreferences());
+        menu.addMenuItem(prefs);
 
         this._menu = menu;
         this._openId = menu.connect('open-state-changed', (_menu, open) => {
@@ -76,6 +83,8 @@ export class NotesMenu {
         this._indicator = null;
         this._menu = null;
         this._hideItem = null;
+        this._onTopItem = null;
+        this._settings = null;
         this._deleteAll = null;
         this._bin = null;
         this._board = null;
@@ -86,6 +95,7 @@ export class NotesMenu {
         const status = this._board.status();
         this._hideItem.label.text = status.hidden ? 'Show notes' : 'Hide notes';
         this._hideItem.setIcon(status.hidden ? 'view-reveal-symbolic' : 'view-conceal-symbolic');
+        this._onTopItem.setToggleState(status.onTop);
         this._deleteAll.setSensitive(status.notes > 0);
 
         const count = status.trash.length;

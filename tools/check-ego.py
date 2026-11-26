@@ -34,6 +34,9 @@ JUNK = re.compile(r"(^|/)(\.git|node_modules|venv|\.venv|dist|po|target)/|\.(po|
 # shexli 0.2.1 treats every shell-version major above 50 as a future release.
 # GNOME 51 is stable (release.gnome.org/51), so that one finding is expected.
 STALE_SHEXLI = {"EGO-M-004"}
+# Clipboard use is allowed when the description says so; shexli flags it for
+# manual review either way. Accepted only while the description declares it.
+DECLARED_SHEXLI = {"EGO-A-005": "clipboard"}
 
 
 def fail(problems, message):
@@ -112,7 +115,14 @@ def check_sources(archive, problems):
                 fail(problems, f"{name}:{number}: line is {len(line)} characters, over {MAX_LINE}")
 
 
-def run_shexli(path, shexli, problems):
+def description(archive):
+    try:
+        return json.loads(archive.read("metadata.json")).get("description", "")
+    except (KeyError, json.JSONDecodeError):
+        return ""
+
+
+def run_shexli(path, shexli, problems, declared=""):
     binary = shexli or shutil.which("shexli")
     if not binary:
         print("  skip  shexli is not installed (pip install shexli)")
@@ -130,6 +140,10 @@ def run_shexli(path, shexli, problems):
         if rule in STALE_SHEXLI:
             print(f"  note  shexli {rule}: {title} (known stale check, ignored)")
             continue
+        word = DECLARED_SHEXLI.get(rule)
+        if word and word in declared.lower():
+            print(f"  note  shexli {rule}: {title} (declared in the description)")
+            continue
         fail(problems, f"shexli {rule} ({finding.get('severity')}): {title}")
 
 
@@ -145,7 +159,7 @@ def main():
     if archive:
         check_metadata(archive, problems)
         check_sources(archive, problems)
-    run_shexli(args.zip, args.shexli, problems)
+    run_shexli(args.zip, args.shexli, problems, description(archive) if archive else "")
     if problems:
         print(f"{len(problems)} problem(s) found")
         return 1
