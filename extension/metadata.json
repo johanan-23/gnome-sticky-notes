@@ -1,7 +1,7 @@
 {
   "uuid": "sticky-notes@johanan.in",
   "name": "Sticky Notes",
-  "description": "Sticky notes on the desktop, in soft pastel colors. Notes stay off the dock, the app switcher, and the overview.",
+  "description": "Sticky notes on the desktop, in soft pastel colors. Notes stay off the dock, the app switcher, and the overview.\n\nClipboard: cut, copy, and paste in a note read and write the system clipboard, only when you use them.",
   "shell-version": ["51"],
   "settings-schema": "org.gnome.shell.extensions.sticky-notes",
   "url": "https://github.com/johanan-23/gnome-sticky-notes"
