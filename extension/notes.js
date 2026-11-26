@@ -139,16 +139,19 @@ export class NoteBoard {
         this._cancellable.cancel();
         this._cancellable = null;
         this._queue = [];
+        // Ending a drag schedules a save, so end drags before flushing it.
+        this._finishDrag();
+        this._finishTextDrag();
+        this._closeMenu();
+        this._menuManager = null;
+        // Only write when something changed. The shell disables extensions
+        // on every screen lock.
         if (this._saveId) {
             GLib.Source.remove(this._saveId);
             this._saveId = 0;
-        }
-        this._closeMenu();
-        this._menuManager = null;
-        if (this._ready)
             this._write();
-        this._finishDrag();
-        this._finishTextDrag();
+        }
+        this._ready = false;
         global.stage.disconnectObject(this);
         Main.overview.disconnectObject(this);
         Main.layoutManager.disconnectObject(this);
@@ -236,7 +239,10 @@ export class NoteBoard {
                 this._useStore(null, !missing);
                 return;
             }
-            this._useStore(decodeStore(contents, this._workspace()), true);
+            const store = decodeStore(contents, this._workspace());
+            if (!store)
+                this._keepDamaged(file);
+            this._useStore(store, true);
         });
     }
 
@@ -262,11 +268,29 @@ export class NoteBoard {
         this._flushQueue();
     }
 
+    // A failed write is logged, never thrown: from destroy() it would abort
+    // disable() and leave every signal connected.
     _write() {
-        GLib.mkdir_with_parents(GLib.path_get_dirname(this._path), 0o755);
-        const bytes = new TextEncoder().encode(`${JSON.stringify(encodeStore(this._store), null, 2)}\n`);
-        Gio.File.new_for_path(this._path).replace_contents(
-            bytes, null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null);
+        try {
+            GLib.mkdir_with_parents(GLib.path_get_dirname(this._path), 0o755);
+            const bytes = new TextEncoder().encode(`${JSON.stringify(encodeStore(this._store), null, 2)}\n`);
+            Gio.File.new_for_path(this._path).replace_contents(
+                bytes, null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null);
+        } catch (error) {
+            console.warn(`Sticky Notes: cannot write ${this._path}: ${error.message}`);
+        }
+    }
+
+    // The next save replaces a file that could not be parsed. Keep a copy so
+    // the notes in it can still be recovered by hand.
+    _keepDamaged(file) {
+        try {
+            const copy = Gio.File.new_for_path(`${this._path}.damaged`);
+            file.copy(copy, Gio.FileCopyFlags.OVERWRITE, null, null);
+            console.warn(`Sticky Notes: ${this._path} could not be read; kept a copy at ${copy.get_path()}`);
+        } catch (error) {
+            console.warn(`Sticky Notes: cannot back up ${this._path}: ${error.message}`);
+        }
     }
 
     _scheduleSave() {
@@ -314,15 +338,59 @@ export class NoteBoard {
         return [this._settings.get_int('max-width'), this._settings.get_int('max-height')];
     }
 
+    // note.expanded_h is the height the user gave the note. The note shows
+    // at that height, or taller while its text needs more room, up to the
+    // tallest a note can be; past that the text scrolls.
     _clampNote(note) {
         const [maxW, maxH] = this._limits();
+        const areas = this._workAreas();
+        const chosen = Number.isInteger(note.expanded_h) ? note.expanded_h : note.h;
+        note.expanded_h = Math.min(Math.max(chosen, MIN_H), Math.max(maxH, MIN_H));
+        const [, , width] = clamp(
+            note.x, note.y, note.w, note.h, areas, MIN_W, MIN_H, maxW, maxH);
+        const view = this._views.get(note.id);
+        const room = Math.max(MIN_H, ...areas.map(area => area.h - 16));
+        const minH = view
+            ? Math.min(Math.max(MIN_H, this._contentHeight(view, width)), maxH, room)
+            : MIN_H;
         const [x, y, w, h] = clamp(
-            note.x, note.y, note.w, note.h, this._workAreas(), MIN_W, MIN_H, maxW, maxH);
+            note.x, note.y, width, Math.max(note.expanded_h, minH), areas, MIN_W, minH, maxW, maxH);
         note.x = x;
         note.y = y;
         note.w = w;
         note.h = h;
-        note.expanded_h = h;
+    }
+
+    // Height a note of width w needs to show all of its text: the grip, every
+    // line, and the formatting bar, which is counted even while hidden so the
+    // note does not jump when editing starts.
+    _contentHeight(view, w) {
+        const {card, grip, text, ribbon} = view;
+        if (!card.get_stage())
+            return MIN_H;
+        const node = card.get_theme_node();
+        let chrome = 0;
+        for (const side of [St.Side.TOP, St.Side.BOTTOM])
+            chrome += node.get_border_width(side) + node.get_padding(side);
+        ribbon.actor.ensure_style();
+        const [, gripH] = grip.get_preferred_height(w);
+        const [, ribbonH] = ribbon.actor.get_preferred_height(w);
+        const textW = Math.max(48, w - 26) + text.margin_left + text.margin_right;
+        const [, textH] = text.get_preferred_height(textW);
+        return Math.ceil(chrome + gripH + textH + ribbonH);
+    }
+
+    // Grows or shrinks the note after its text or text size changed.
+    _fit(view) {
+        const {note} = view;
+        if (this._views.get(note.id) !== view)
+            return;
+        const before = [note.x, note.y, note.w, note.h];
+        this._clampNote(note);
+        if (before.some((value, i) => value !== [note.x, note.y, note.w, note.h][i])) {
+            this._layout(view);
+            this._scheduleSave();
+        }
     }
 
     _clampAll() {
@@ -468,6 +536,7 @@ export class NoteBoard {
         this._views.set(note.id, view);
         this._desktop.seat();
         this._layer.add_child(view.frame);
+        this._clampNote(note);
         this._layout(view);
         this._paint(view);
         this._applyVisibility();
@@ -592,6 +661,7 @@ export class NoteBoard {
             rewriteId: 0,
             focusId: 0,
             newlineId: 0,
+            revealId: 0,
         };
         editClick.connectObject('recognize', () => {
             if (!view.note.locked)
@@ -635,14 +705,51 @@ export class NoteBoard {
                 this._dropHold(view);
                 this._syncRibbon(view);
             },
-            'cursor-changed', () => this._syncRibbon(view),
+            'cursor-changed', () => {
+                this._syncRibbon(view);
+                this._revealSoon(view);
+            },
             'text-changed', () => this._onText(view),
             this);
         // Key controllers run before the actor's key signal. Return's binding
         // is activate, and it does not insert a line, so the newline has to
         // be inserted from the controller that sees the key first.
         view.keyControllers = this._watchTextKeys(view, text);
+        // A note at its tallest scrolls; keep the caret line in sight as the
+        // text grows past the bottom.
+        scroll.vadjustment.connectObject('changed', () => this._revealSoon(view), this);
         return view;
+    }
+
+    // The adjustment learns the new text height during allocation. Scrolling
+    // from there would ask for another layout mid-pass, so wait for idle.
+    _revealSoon(view) {
+        if (view.revealId || !view.editing)
+            return;
+        view.revealId = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            view.revealId = 0;
+            this._revealCaret(view);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _revealCaret(view) {
+        const {text, scroll} = view;
+        if (!view.editing || global.stage.get_key_focus() !== text)
+            return;
+        const adjustment = scroll.vadjustment;
+        const chars = Array.from(text.text);
+        const at = this._clampIndex(view, text.cursor_position);
+        const rect = text.get_layout().index_to_pos(utf8Length(chars.slice(0, at).join('')));
+        const [, oy] = text.get_layout_offsets();
+        const top = text.margin_top + oy + rect.y / Pango.SCALE;
+        const bottom = top + rect.height / Pango.SCALE + text.margin_bottom;
+        const value = adjustment.value;
+        const page = adjustment.page_size;
+        if (bottom > value + page)
+            adjustment.value = Math.min(bottom - page, adjustment.upper - page);
+        else if (top < value)
+            adjustment.value = Math.max(0, top - text.margin_top);
     }
 
     _watchTextKeys(view, text) {
@@ -667,7 +774,6 @@ export class NoteBoard {
         card.set_position(0, 0);
         card.set_size(note.w, note.h);
         text.width = Math.max(48, note.w - 26);
-        text.min_height = 0;
         resize.set_position(Math.max(0, note.w - HANDLE), Math.max(0, note.h - HANDLE));
         resize.set_size(HANDLE, HANDLE);
     }
@@ -689,7 +795,7 @@ export class NoteBoard {
     }
 
     _drop(view) {
-        for (const key of ['rewriteId', 'focusId', 'newlineId']) {
+        for (const key of ['rewriteId', 'focusId', 'newlineId', 'revealId']) {
             if (view[key]) {
                 GLib.Source.remove(view[key]);
                 view[key] = 0;
@@ -711,6 +817,7 @@ export class NoteBoard {
         view.editClick.disconnectObject(this);
         view.scroll.remove_action(view.editClick);
         view.scroll.disconnectObject(this);
+        view.scroll.vadjustment.disconnectObject(this);
         view.frame.disconnectObject(this);
         view.grip.disconnectObject(this);
         view.text.disconnectObject(this);
@@ -763,16 +870,13 @@ export class NoteBoard {
         return Clutter.EVENT_PROPAGATE;
     }
 
+    // Every note frame lives in the layer, so reaching the layer covers them.
     _eventHitsUs(actor) {
         while (actor) {
             if (actor === this._layer)
                 return true;
             if (this._menu && actor === this._menu.actor)
                 return true;
-            for (const view of this._views.values()) {
-                if (actor === view.frame)
-                    return true;
-            }
             actor = actor.get_parent();
         }
         return false;
@@ -821,15 +925,15 @@ export class NoteBoard {
             this._openMenu(view);
             return Clutter.EVENT_STOP;
         }
-        if (event.get_button() === BUTTON_PRIMARY)
-            view.sizeHold = false;
         this._focus(view, !view.note.locked);
         return Clutter.EVENT_PROPAGATE;
     }
 
+    // Only the style toggles end here. A size picked in the ribbon stays the
+    // size of the text typed next until another size is picked, wherever the
+    // caret goes; a click or an arrow key no longer resets it.
     _dropHold(view) {
         view.hold = false;
-        view.sizeHold = false;
     }
 
     // A press on the note body outside the text, in its margins, places the
@@ -864,7 +968,6 @@ export class NoteBoard {
             return Clutter.EVENT_STOP;
         const index = this._indexAt(view, event);
         const extend = (event.get_state() & Clutter.ModifierType.SHIFT_MASK) !== 0;
-        view.sizeHold = false;
         this._focus(view, true);
         const anchor = extend ? this._clampIndex(view, view.text.selection_bound) : index;
         view.text.set_selection(anchor, index);
@@ -918,7 +1021,6 @@ export class NoteBoard {
         const next = start < 0 ? null : toggleBoxAt(view.note.text, start);
         if (next === null)
             return false;
-        view.sizeHold = false;
         const cursor = view.text.cursor_position;
         this._focus(view, false);
         this._commitText(view, next, cursor);
@@ -1153,6 +1255,11 @@ export class NoteBoard {
         const [start, end] = view.anchor ?? this._range(view);
         if (start !== end) {
             view.note.sizes = stepSizes(view.note.sizes, length, start, end, base, delta);
+            const picked = selectionSize(view.note.sizes, length, start, end, base);
+            if (picked !== null) {
+                view.pendingSize = picked === base ? 0 : picked;
+                view.sizeHold = true;
+            }
             this._showAttrs(view);
             view.text.set_selection(start, end);
             this._scheduleSave();
@@ -1216,15 +1323,16 @@ export class NoteBoard {
 
     _showAttrs(view) {
         const runs = attributeRuns(view.note.text, view.note.spans, view.note.sizes);
-        if (!runs.length) {
+        if (runs.length) {
+            const list = new Pango.AttrList();
+            for (const run of runs)
+                this._addRun(list, run);
+            view.text.set_attributes(list);
+        } else {
             view.text.set_attributes(null);
-            return;
         }
-        const list = new Pango.AttrList();
-        for (const run of runs)
-            this._addRun(list, run);
-        view.text.set_attributes(list);
         view.text.queue_relayout();
+        this._fit(view);
     }
 
     _addRun(list, run) {
@@ -1319,6 +1427,7 @@ export class NoteBoard {
         } else {
             note.w = drag.originW + dx;
             note.h = drag.originH + dy;
+            note.expanded_h = note.h;
         }
         this._clampNote(note);
         this._layout(drag.view);
@@ -1333,7 +1442,9 @@ export class NoteBoard {
         drag.grab.dismiss();
         global.stage.cursor_type = drag.stageCursor;
         view.grip.cursor_type = Clutter.CursorType.GRAB;
-        view.note.expanded_h = view.note.h;
+        // A drag below what the text needs leaves the note at that floor.
+        if (drag.mode === 'resize')
+            view.note.expanded_h = view.note.h;
         view.note.workspace = this._workspace();
         this._scheduleSave();
     }
@@ -1364,7 +1475,7 @@ export class NoteBoard {
             y,
             w: source.w,
             h: source.h,
-            expanded_h: source.h,
+            expanded_h: source.expanded_h ?? source.h,
             color: source.color,
             size: source.size,
             collapsed: false,
