@@ -628,15 +628,17 @@ export class NoteBoard {
         const scroll = new St.ScrollView({
             style_class: 'sticky-note-scroll',
             overlay_scrollbars: true,
-            // The scroll view's pan gesture claims the press in the capture
-            // phase and cancels the text's click, so a click never focuses it.
-            enable_touch_scrolling: false,
             hscrollbar_policy: St.PolicyType.NEVER,
             vscrollbar_policy: St.PolicyType.EXTERNAL,
             x_expand: true,
             y_expand: true,
             child: page,
         });
+        // On Shell 51 the scroll view's pan gesture claims the press in the
+        // capture phase and cancels the text's click, so a click never
+        // focuses it. Shell 50 has no such gesture or property.
+        if ('enable_touch_scrolling' in scroll)
+            scroll.enable_touch_scrolling = false;
         const resize = new St.Widget({
             style_class: 'sticky-note-resize',
             reactive: true,
@@ -761,6 +763,10 @@ export class NoteBoard {
 
     _watchTextKeys(view, text) {
         const watched = [];
+        // Older Clutter has no key controllers; the key-press-event handler
+        // covers Return there.
+        if (!Clutter.KeyController)
+            return watched;
         const actions = text.get_actions();
         const named = text.get_action('Clutter shortcuts key controller');
         if (named && !actions.includes(named))
