@@ -1714,6 +1714,9 @@ export class NoteBoard {
         this._closeMenu();
         this._focus(view, false);
         const menu = new PopupMenu.PopupMenu(view.grip, 0.0, St.Side.TOP);
+        // The menu is built on every open, so it picks up a theme switch.
+        menu.actor.add_style_class_name(
+            Main.getStyleVariant() === 'light' ? 'sticky-menu-light' : 'sticky-menu-dark');
         const colors = new St.BoxLayout({
             orientation: Clutter.Orientation.VERTICAL,
             style_class: 'sticky-note-colors',
@@ -1755,13 +1758,13 @@ export class NoteBoard {
         const selected = range[0] !== range[1];
         // One row of icon buttons. The shortcut is in the accessible name.
         const tools = new St.BoxLayout({
-            style_class: 'sticky-note-tools',
+            style_class: 'sticky-menu-tools',
             x_expand: true,
             x_align: Clutter.ActorAlign.CENTER,
         });
         const tool = (label, icon, sensitive, fn) => {
             const button = new St.Button({
-                style_class: 'sticky-note-tool',
+                style_class: 'sticky-menu-tool',
                 child: new St.Icon({icon_name: icon, icon_size: 16}),
                 can_focus: sensitive,
                 reactive: sensitive,
