@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+  # The release workflow runs these same checks before it publishes.
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint-and-test:
+    name: Lint and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: ESLint
+        run: npx eslint extension tests eslint.config.js
+
+      - name: Unit tests (format.js, model.js)
+        run: npm test
+
+      - name: ShellCheck
+        run: shellcheck --severity=warning install.sh tools/pack.sh
+
+  schema:
+    name: GSettings schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install glib-compile-schemas
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libglib2.0-bin
+
+      - name: Compile schema (strict, dry run)
+        run: glib-compile-schemas --strict --dry-run extension/schemas
+
+  package:
+    name: Build and check upload zip
+    needs: [lint-and-test, schema]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      # Pinned: newer releases may change rule ids that tools/check-ego.py knows about.
+      - name: Install shexli
+        run: pip install shexli==0.2.1
+
+      - name: Build zip
+        run: bash tools/pack.sh
+
+      - name: Check against extensions.gnome.org rules
+        run: python3 tools/check-ego.py dist/*.shell-extension.zip
+
+      - name: Summary
+        run: |
+          {
+            echo '### Upload zip'
+            echo
+            echo '| File | Size |'
+            echo '| --- | --- |'
+            for f in dist/*.zip; do echo "| \`$(basename "$f")\` | $(du -h "$f" | cut -f1) |"; done
+            echo
+            echo '<details><summary>Contents</summary>'
+            echo
+            echo '```'
+            unzip -l dist/*.zip
+            echo '```'
+            echo '</details>'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shell-extension-zip
+          path: dist/*.shell-extension.zip
+          if-no-files-found: error
+          retention-days: 14
