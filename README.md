@@ -25,7 +25,7 @@ The notes are actors in the Shell session, the same kind of widget as the top ba
 
 ## Local development
 
-You need GNOME Shell 51 on Wayland, plus `git`, `python3`, and `glib-compile-schemas` (from the GLib development tools, usually already installed with GNOME).
+You need GNOME Shell 50 or 51 on Wayland, plus `git`, `python3`, and `glib-compile-schemas` (from the GLib development tools, usually already installed with GNOME).
 
 Clone the repository and install the extension from your checkout:
 
@@ -87,7 +87,7 @@ pip install shexli==0.2.1
 python3 tools/check-ego.py dist/sticky-notes@johanan.in.shell-extension.zip
 ```
 
-shexli reports `shell-version` 51 as a future release (`EGO-M-004`). That check is out of date, and `check-ego.py` ignores it. Leave `"51"` in `extension/metadata.json`.
+shexli reports `shell-version` 51 as a future release (`EGO-M-004`). That check is out of date, and `check-ego.py` ignores it. Leave `"50"` and `"51"` in `extension/metadata.json`.
 
 Each CI run attaches the built zip as an artifact. Pushing a tag such as `v3` publishes a GitHub release with the zip attached. Uploading to extensions.gnome.org is still done by hand.
 
