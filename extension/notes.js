@@ -1753,27 +1753,39 @@ export class NoteBoard {
         };
         const editable = !view.note.locked;
         const selected = range[0] !== range[1];
-        const edit = (label, accel, icon, sensitive, fn) => {
-            const item = menu.addAction(label, () => later(fn), icon);
-            item.add_child(new St.Label({
-                text: accel,
-                style_class: 'sticky-note-accel',
-                x_expand: true,
-                x_align: Clutter.ActorAlign.END,
-                y_align: Clutter.ActorAlign.CENTER,
-            }));
-            item.setSensitive(sensitive);
+        // One row of icon buttons. The shortcut is in the accessible name.
+        const tools = new St.BoxLayout({
+            style_class: 'sticky-note-tools',
+            x_expand: true,
+            x_align: Clutter.ActorAlign.CENTER,
+        });
+        const tool = (label, icon, sensitive, fn) => {
+            const button = new St.Button({
+                style_class: 'sticky-note-tool',
+                child: new St.Icon({icon_name: icon, icon_size: 16}),
+                can_focus: sensitive,
+                reactive: sensitive,
+                accessible_name: label,
+            });
+            if (!sensitive)
+                button.add_style_pseudo_class('insensitive');
+            button.connectObject('clicked', () => {
+                later(fn);
+                menu.close();
+            }, this);
+            tools.add_child(button);
         };
-        edit('Undo', 'Ctrl+Z', 'edit-undo-symbolic', editable && view.history.canUndo(),
-            () => this._undo(view));
-        edit('Redo', 'Ctrl+Shift+Z', 'edit-redo-symbolic', editable && view.history.canRedo(),
-            () => this._redo(view));
-        edit('Cut', 'Ctrl+X', 'edit-cut-symbolic', editable && selected,
+        tool('Cut (Ctrl+X)', 'edit-cut-symbolic', editable && selected,
             () => this._cut(view, range));
-        edit('Copy', 'Ctrl+C', 'edit-copy-symbolic', selected,
+        tool('Copy (Ctrl+C)', 'edit-copy-symbolic', selected,
             () => this._copy(view, range));
-        edit('Paste', 'Ctrl+V', 'edit-paste-symbolic', editable,
+        tool('Paste (Ctrl+V)', 'edit-paste-symbolic', editable,
             () => this._paste(view, range));
+        tool('Undo (Ctrl+Z)', 'edit-undo-symbolic', editable && view.history.canUndo(),
+            () => this._undo(view));
+        tool('Redo (Ctrl+Shift+Z)', 'edit-redo-symbolic', editable && view.history.canRedo(),
+            () => this._redo(view));
+        menu.box.add_child(tools);
         menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
         menu.addAction('New note', () => later(() => this._create(null)), 'document-new-symbolic');
         menu.addAction('Duplicate', () => later(() => this._duplicate(view)), 'view-dual-symbolic');
